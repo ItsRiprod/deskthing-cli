@@ -1,0 +1,57 @@
+{
+  "name": "@deskthing/cli",
+  "version": "0.10.5",
+  "description": "An emulator for the DeskThing Server",
+  "keywords": [
+    "Emulator",
+    "DeskThing",
+    "Development",
+    "App",
+    "Development",
+    "DeskThing",
+    "Development"
+  ],
+  "homepage": "https://github.com/itsriprod/deskthing-emulator#readme",
+  "bugs": {
+    "url": "https://github.com/itsriprod/deskthing-emulator/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsriprod/deskthing-emulator.git"
+  },
+  "license": "ISC",
+  "author": "Riprod",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "deskthing": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run build:client && npm run build:server && npm run build:cli && npm run build:process",
+    "build:server": "esbuild src/emulator/index.ts --bundle --platform=node --outdir=dist --format=esm --external:ws",
+    "build:cli": "esbuild src/cli.ts --bundle --platform=node --outdir=dist --format=esm --packages=external",
+    "build:process": "node -e \"require('fs').copyFileSync('src/emulator/server/serverProcess.ts', 'dist/serverProcess.ts')\"",
+    "build:client": "vite build"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsm": "^2.3.0",
+    "ws": "^8.18.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.10",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@types/ws": "^8.5.14",
+    "@types/yargs": "^17.0.33",
+    "@vitejs/plugin-react": "^4.3.4",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  },
+  "peerDependencies": {
+    "tsm": "^2.3.0"
+  }
+}
