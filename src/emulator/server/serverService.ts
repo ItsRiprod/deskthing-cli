@@ -2,17 +2,17 @@ import { getServerData } from './coms'
 import { getManifestDetails } from './manifestDetails'
 import { Logger } from '../services/logger'
 import { ServerMessageBus } from './serverMessageBus'
+import { DeskThingConfig } from '../../config/deskthing.config'
 
 export class ServerService {
   constructor() {
     ServerMessageBus.subscribe("client:request", (data: any) => {
       this.handleClientRequest(data)
     })
-    ServerMessageBus.initialize(8080)
   }
 
   private handleClientRequest(data: any) {
-    Logger.log(`Received request: ${JSON.stringify(data)}`)
+    Logger.debug(`Received request: ${JSON.stringify(data)}`)
     // Handle different types of requests
     switch(data.type) {
       case "getData":
@@ -23,6 +23,12 @@ export class ServerService {
         break
       case "getSettings":
         this.sendSettingsData()
+        break
+      case "getClientConfig":  // Add this new case
+        this.sendClientConfig()
+        break
+      case "log":  // Add this new case
+        Logger.clientLog(data.level, '[CLIENT LOG] ' + data.message)
         break
       default:
         // Handle any other custom requests from client
@@ -64,6 +70,14 @@ export class ServerService {
     ServerMessageBus.publish('client:response', {
       type: 'settings',
       payload: data.settings
+    })
+  }
+
+  private async sendClientConfig() {
+    const clientConfig = DeskThingConfig.development.client
+    ServerMessageBus.publish('client:response', {
+      type: 'clientConfig',
+      payload: clientConfig // Send the client section of the config
     })
   }
 }

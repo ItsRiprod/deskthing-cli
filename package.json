@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.10.5",
+  "version": "0.10.7",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",
@@ -11,6 +11,12 @@
     "DeskThing",
     "Development"
   ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "homepage": "https://github.com/itsriprod/deskthing-emulator#readme",
   "bugs": {
     "url": "https://github.com/itsriprod/deskthing-emulator/issues"
@@ -27,20 +33,22 @@
     "deskthing": "dist/cli.js"
   },
   "scripts": {
-    "build": "npm run build:client && npm run build:server && npm run build:cli && npm run build:process",
-    "build:server": "esbuild src/emulator/index.ts --bundle --platform=node --outdir=dist --format=esm --external:ws",
+    "build": "npm run build:emulator-client && npm run build:emulator && npm run build:cli && npm run build:emulator-thread && npm run build:index",
     "build:cli": "esbuild src/cli.ts --bundle --platform=node --outdir=dist --format=esm --packages=external",
-    "build:process": "node -e \"require('fs').copyFileSync('src/emulator/server/serverProcess.ts', 'dist/serverProcess.ts')\"",
-    "build:client": "vite build"
-  },
+    "build:emulator": "esbuild src/emulator/index.ts --bundle --platform=node --outdir=dist/emulator --format=esm --external:ws",
+    "build:emulator-thread": "node -e \"require('fs').copyFileSync('src/emulator/server/serverProcess.ts', 'dist/emulator/serverProcess.ts')\"",
+    "build:emulator-client": "vite build",
+    "build:index": "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --packages=external && tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist --skipLibCheck --isolatedModules --module es2022"  },
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tsm": "^2.3.0",
     "ws": "^8.18.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.2",
+    "zip-lib": "^1.0.5"
   },
   "devDependencies": {
+    "@deskthing/types": "^0.10.7",
     "@types/node": "^22.10.10",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",

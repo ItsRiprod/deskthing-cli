@@ -7,6 +7,7 @@ export class ServerMessageBus {
   private static ws: WebSocketServer;
 
   static initialize(port: number = 8080) {
+
     if (this.ws) {
         this.ws.close()
     }
@@ -50,6 +51,8 @@ export class ServerMessageBus {
     this.ws.clients.forEach((client) => {
       if (client?.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify({ event, data }));
+      } else {
+        console.error('Unable to send data because readystate of client is ', client?.readyState)
       }
     });
   }

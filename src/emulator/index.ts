@@ -1,10 +1,11 @@
-import { DevServer } from './client/client'
+import { initConfig } from '../config/deskthing.config'
+import { DevClient } from './client/client'
 import { ServerRunner } from './server/server'
-export async function startDevelopment({ port = 8891 }: { port?: number } = {}) { 
+export async function startDevelopment() { 
+  await initConfig()
   
-  const devServer = new DevServer()
+  const devServer = new DevClient()
   const serverRunner = new ServerRunner()
-
   await Promise.all([
     devServer.start(),
     serverRunner.start()

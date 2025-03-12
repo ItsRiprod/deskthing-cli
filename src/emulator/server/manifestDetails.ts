@@ -1,5 +1,6 @@
   import path from 'path';
   import fs from 'fs';
+import { Logger } from '../services/logger'
 
   type PlatformTypes = 'linux' | 'windows' | 'macos';
   type TagTypes = 'system' | 'utility' | 'media' | 'development' | 'network' | 'gaming';
@@ -22,8 +23,19 @@
   };
 
   export const getManifestDetails = (): AppManifest => {
-    const manifestPath = path.join(process.cwd(), 'public', 'manifest.json');
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const manifestPath = path.join(process.cwd(), 'deskthing', 'manifest.json');
+    const altManifestPath = path.join(process.cwd(), 'public', 'manifest.json');
+    let finalPath = manifestPath
+    if (!fs.existsSync(finalPath)) {
+      finalPath = altManifestPath
+      Logger.error("❌ Failed to load manifest.json from deskthing/manifest.json, trying public/manifest.json");
+      if (!fs.existsSync(finalPath)) {
+        throw new Error("\x1b[31m❌ Failed to load manifest.json from both locations\x1b[0m");
+      } else {
+        Logger.info("\x1b[32m✅ Successfully loaded manifest.json from public/manifest.json\x1b[0m");
+      }
+    }
+    const manifest = JSON.parse(fs.readFileSync(finalPath, 'utf8'));
     
     return {
       id: manifest.id,

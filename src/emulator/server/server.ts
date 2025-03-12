@@ -8,6 +8,8 @@ import { AppManifest, getManifestDetails } from './manifestDetails'
 import { ServerMessageBus } from './serverMessageBus'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { DeskThingConfig } from '../../config/deskthing.config'
+import { LOGGING_LEVELS } from '@deskthing/types'
 
 export class ServerRunner {
   private serverProcess: ChildProcess | null = null
@@ -24,10 +26,18 @@ export class ServerRunner {
   }
 
   private startServerMessageBus() {
-    ServerMessageBus.initialize(8080)
+    ServerMessageBus.initialize(DeskThingConfig.development.client.linkPort)
     ServerMessageBus.subscribe('app:data', (payload) => {
       if (this.serverProcess) {
         this.serverProcess.send({ type: 'app:data', payload: payload })
+      }
+    })
+    ServerMessageBus.subscribe('auth:callback', (payload) => {
+      if (this.serverProcess) {
+        this.serverProcess.send({ type: 'app:data', payload: {
+          type: 'callback-data',
+          payload: payload.code
+        } })
       }
     })
   }
@@ -39,7 +49,7 @@ export class ServerRunner {
       const __dirname = dirname(fileURLToPath(import.meta.url));
       const processPath = resolve(__dirname, 'serverProcess.ts');
       const serverPath = resolve(projectRoot, 'server', 'index.ts');
-
+      const rootPath = resolve(projectRoot, 'server');
       // this.serverProcess = spawn('node', [
       //   '-r', 'ts-node/esm',
       //   '--experimental-specifier-resolution=node',
@@ -53,16 +63,30 @@ export class ServerRunner {
       //   },
       //   stdio: ['inherit', 'inherit', 'inherit', 'ipc']
       // })
+      if (this.serverProcess) {
+        this.serverProcess.kill('SIGTERM')
+        this.serverProcess = null
+        Logger.info('Waiting for server to exit...')
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+        this.serverProcess = fork(processPath, [], {
+          execArgv: ['--loader', 'tsm'],
+          env: { 
+            ...process.env,
+            NODE_ENV: 'development',
+            SERVER_INDEX_PATH: serverPath,
+            DESKTHING_ROOT_PATH: rootPath
+          },
+          stdio: 'pipe'
+        })
 
-      this.serverProcess = fork(processPath, [], {
-        execArgv: ['--loader', 'tsm'],
-        env: { 
-          ...process.env,
-          NODE_ENV: 'development',
-          SERVER_INDEX_PATH: serverPath
-        },
-        stdio: ['inherit', 'inherit', 'inherit', 'ipc']
-      })
+        this.serverProcess.stdout?.on('data', (data) => {
+          Logger.clientLog(LOGGING_LEVELS.LOG, data.toString())
+        })
+
+        this.serverProcess.stderr?.on('data', (data) => {
+          Logger.clientLog(LOGGING_LEVELS.ERROR, data.toString())
+        })
 
       process.env.SERVER_INDEX_PATH = serverPath
       
@@ -70,7 +94,7 @@ export class ServerRunner {
 
       this.serverProcess.on("message", (message: { type: string; payload?: any }) => {
         if (message.type === "server:log" && message.payload) {
-          Logger.log("[childprocess]", message.payload);
+          Logger.debug("[childprocess]", message.payload);
         } else if (message.type === "server:data") {
           // handle data from the deskthing
           handleDataFromApp(this.manifest?.id || "testapp", message.payload);
@@ -79,8 +103,26 @@ export class ServerRunner {
         }
       });
 
+      this.serverProcess.on('error', (error) => {
+        Logger.error('Experienced an error in the server wrapper:', error)
+      })
 
-      Logger.log('Server process started')
+      this.serverProcess.on('close', (code, signal) => {
+        if (signal == 'SIGTERM') {
+          return
+        }
+        
+        if (!code || !signal) {
+          Logger.warn('server wrapper unexpectedly closed', code, signal)
+        }
+        if (this.serverProcess) {
+          this.serverProcess.kill('SIGTERM')
+          this.serverProcess = null
+        }
+        Logger.debug(`Server process closed with code ${code} and signal ${signal}`)
+      })
+
+      Logger.debug('Server process started')
     } catch (error) {
       Logger.error('Server process failed to start: ', error)
     }
@@ -95,7 +137,7 @@ export class ServerRunner {
       (eventType, filename) => {
         if (filename?.endsWith('.ts')) {
           if (isInitialScan) return
-          Logger.log(`File ${filename} changed, queuing server restart...`)
+          Logger.info(`📝 File ${filename} changed, queuing server restart...`)
           this.queueRestart()
         }
     })
@@ -112,25 +154,26 @@ export class ServerRunner {
       this.restartTimeout = null
     }
     if (this.serverProcess) {
-      this.serverProcess.kill()
+      this.serverProcess.kill('SIGTERM')
       this.serverProcess = null
     }
   }
 
-  private queueRestart() {
+  private async queueRestart() {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout)
     }
     this.restartTimeout = setTimeout(() => {
       this.restartServer()
       this.restartTimeout = null
-    }, 750)
+      Logger.info(`🕛 Waited ${DeskThingConfig.development.server.editCooldownMs || 1000}ms. Restarting...`)
+    }, DeskThingConfig.development.server.editCooldownMs || 1000)
   }
 
   private async restartServer() {
-    Logger.log('Restarting server...')
+    Logger.info('🔄 Restarting server...')
     if (this.serverProcess) {
-      this.serverProcess.kill()
+      this.serverProcess.kill('SIGTERM')
       this.serverProcess = null
     }
     this.startServerProcess()

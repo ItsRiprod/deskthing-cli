@@ -1,110 +1,9 @@
-enum SEND_TYPES {
-  /**
-   * Default handler for unknown or unspecified data types.
-   * Will log a warning message about the unknown data type.
-   */
-  DEFAULT = "default",
-  /**
-   * Retrieves data from the server. Supports multiple request types:
-   * - 'data': Gets app-specific stored data
-   * - 'config': Gets configuration (deprecated)
-   * - 'settings': Gets application settings
-   * - 'input': Requests user input via a form
-   *
-   * @remarks Use {@link DeskThing.getData}, {@link DeskThing.getConfig}, {@link DeskThing.getSettings}, or {@link DeskThing.getUserInput} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.GET, { request: 'settings' })
-   */
-  GET = "get",
-  /**
-   * Sets data inside the server for your app that can be retrieved with DeskThing.getData()
-   * Data is stored persistently and can be retrieved later.
-   *
-   * @remarks Use {@link DeskThing.saveData} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.SET, { payload: { key: 'value' }})
-   */
-  SET = "set",
-  /**
-   * Deletes data inside the server for your app that can be retrieved with DeskThing.getData()
-   *
-   * @remarks Use {@link DeskThing.deleteSettings} or {@link DeskThing.deleteData} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.DELETE, { payload: ['key1', 'key2'] }, "settings")
-   * DeskThing.sendData(SEND_TYPES.DELETE, { payload: ['key1', 'key2'] }, "data")
-   */
-  DELETE = "delete",
-  /**
-   * Opens a URL to a specific address on the server.
-   * This gets around any CORS issues that may occur by opening in a new window.
-   * Typically used for authentication flows.
-   *
-   * @remarks Use {@link DeskThing.openUrl} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.OPEN, { payload: 'https://someurl.com' })
-   */
-  OPEN = "open",
-  /**
-   * Sends data to the front end client.
-   * Can target specific client components or send general messages.
-   * Supports sending to both the main client and specific app clients.
-   *
-   * @remarks Use {@link DeskThing.send} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.SEND, { type: 'someData', payload: 'value' })
-   */
-  SEND = "send",
-  /**
-   * Sends data to another app in the system.
-   * Allows inter-app communication by specifying target app and payload.
-   * Messages are logged for debugging purposes.
-   *
-   * @remarks Use {@link DeskThing.sendDataToOtherApp} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.TOAPP, { request: 'spotify', payload: { type: 'get', data: 'music' }})
-   */
-  TOAPP = "toApp",
-  /**
-   * Logs messages to the system logger.
-   * Supports multiple log levels: DEBUG, ERROR, FATAL, LOGGING, MESSAGE, WARNING
-   * Messages are tagged with the source app name.
-   *
-   * @remarks Use {@link DeskThing.log} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.LOG, { request: 'ERROR', payload: 'Something went wrong' })
-   */
-  LOG = "log",
-  /**
-   * Manages key mappings in the system.
-   * Supports operations: add, remove, trigger
-   * Keys can have multiple modes and are associated with specific apps.
-   *
-   * @remarks Use {@link DeskThing.registerKeyObject} instead
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.KEY, { request: 'add', payload: { id: 'myKey', modes: ['default'] }})
-   */
-  KEY = "key",
-  /**
-   * Manages actions in the system.
-   * Supports operations: add, remove, update, run
-   * Actions can have values, icons, and version information.
-   *
-   * @remarks
-   * It is recommended to use {@link DeskThing.registerAction} instead of sending data directly.
-   *
-   * @example
-   * DeskThing.sendData(SEND_TYPES.ACTION, { request: 'add', payload: { id: 'myAction', name: 'My Action' }})
-   */
-  ACTION = "action"
-}
+import { ServerService } from "./serverService";
+import { ServerMessageBus } from "./serverMessageBus";
+import { Logger } from "../services/logger";
+import { AppSettings, LOGGING_LEVELS, SEND_TYPES, SETTING_TYPES, SettingsType } from "@deskthing/types"
+import { DeskThingConfig } from "../../config/deskthing.config"
+import { exec } from 'child_process'
 
 type HandlerFunction = (
   app: string,
@@ -117,15 +16,11 @@ type RequestHandler = {
   [key: string]: HandlerFunction;
 };
 
-import { ServerService } from "./serverService";
-import { ServerMessageBus } from "./serverMessageBus";
-import { Logger, LOGGING_LEVELS } from "../services/logger";
-
 const serverService = new ServerService();
 
 let Data: {
   data: { [key: string]: any };
-  settings: any;
+  settings: AppSettings
 } = {
   data: {},
   settings: {},
@@ -147,7 +42,7 @@ export const handleDataFromApp = async (
       Logger.error("Error in handleDataFromApp:", error);
     }
   } else {
-    Logger.error("Unknown event type:", appData.type);
+    Logger.error("Unknown event type:", appData.type, ' with request ', appData.request);
   }
 };
 /**
@@ -160,7 +55,7 @@ const handleRequestMissing: HandlerFunction = (
   app: string,
   appData: any
 ) => {
-  Logger.log(
+  Logger.warn(
     `[handleComs]: App ${app} sent unknown data type: ${
       appData.type
     } and request: ${appData.request}, with payload ${
@@ -175,12 +70,28 @@ const handleRequestMissing: HandlerFunction = (
 };
 
 const handleRequestSetSettings: HandlerFunction = async (app, appData) => {
-  Logger.log("Simulating adding settings: ", appData.payload);
-  Data.settings = { ...Data.settings, ...appData.payload };
+  Logger.info("Simulating adding settings");
+  Logger.debug("Settings being added: ", appData.payload);
+  const appSettings = appData.payload as AppSettings
+  const rebuiltSettings: AppSettings = Object.fromEntries(Object.entries(appSettings).map(([key, setting]) => {
+    return [key, {
+      ...setting,
+      value: DeskThingConfig.development?.server?.mockData?.settings[key] || setting.value
+    }]
+  }))
+  Logger.debug('Rebuilt Settings with mocked data. Setting to: ', rebuiltSettings)
+  Data.settings = {  ...Data.settings, ...rebuiltSettings }
+
+  // Simulate loading before settings are "submitted" and sent back
+  await new Promise(resolve => setTimeout(resolve, 5000));
+  Logger.debug('Sending settings back to the server')
+  ServerMessageBus.notify("app:data", { type: "settings", payload: rebuiltSettings });
+
 };
 
 const handleRequestSetData: HandlerFunction = async (app, appData) => {
-  Logger.log("Simulating adding data", appData.payload);
+  Logger.info("Simulating adding data");
+  Logger.debug("Data being added: ", Data.data);
   Data.data = { ...Data.data, ...appData.payload };
 };
 
@@ -211,7 +122,23 @@ const handleRequestSet: HandlerFunction = async (
  * @returns {Promise<void>} - A Promise that resolves when the authentication window has been opened.
  */
 const handleRequestOpen: HandlerFunction = async (_app, appData) => {
-  window.open(appData.payload, "_blank");
+  Logger.debug(`[handleOpen]: Opening ${appData.payload}`);
+  
+  const encodedUrl = encodeURI(appData.payload);
+  
+  try {
+    if (process.platform === 'win32') {
+      // For Windows, use the shell option to avoid command line parsing issues
+      exec(`start "" "${encodedUrl}"`);
+    } else if (process.platform === 'darwin') {
+      exec(`open '${encodedUrl}'`);
+    } else {
+      exec(`xdg-open '${encodedUrl}'`);
+    }
+    Logger.debug(`URL opening command executed successfully`);
+  } catch (error) {
+    Logger.error(`Error opening URL: ${error.message}`);
+  }
 };
 
 /**
@@ -235,7 +162,8 @@ const handleRequestKeyAdd: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Key data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to remove a key from the key map store.
@@ -248,7 +176,8 @@ const handleRequestKeyRemove: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Key data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to trigger a key in the key map store.
@@ -261,7 +190,8 @@ const handleRequestKeyTrigger: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Key data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to run an action in the key map store.
@@ -274,7 +204,8 @@ const handleRequestActionRun: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Action data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to update the icon of an action in the key map store.
@@ -287,7 +218,8 @@ const handleRequestActionUpdate: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Action data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to remove an action from the key map store.
@@ -300,7 +232,8 @@ const handleRequestActionRemove: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Action data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 /**
  * Handles a request to add a new action to the key map store.
@@ -313,7 +246,8 @@ const handleRequestActionAdd: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.error("Mapping data isnt supported. Received ", appData.payload);
+  Logger.warn("Action data isn't supported");
+  Logger.debug('Received', appData.payload)
 };
 
 /**
@@ -323,7 +257,8 @@ const handleRequestActionAdd: HandlerFunction = async (
  * @returns {Promise<void>} - A Promise that resolves when the data has been sent to the app.
  */
 const handleRequestGetData: HandlerFunction = async (app): Promise<void> => {
-  Logger.log(`[handleAppData]: App is requesting data. Returning:`, Data.data);
+  Logger.info(`[handleAppData]: App is requesting data`);
+  Logger.debug(`[handleAppData]: Returning Data:`, Data.data);
   ServerMessageBus.notify("app:data", { type: "data", payload: Data.data });
 };
 
@@ -337,14 +272,14 @@ const handleRequestDelData: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.log(
+  Logger.info(
     `[handleAppData]: ${app} is deleting data: ${appData.payload.toString()}`
   );
   if (
     !appData.payload ||
     (typeof appData.payload !== "string" && !Array.isArray(appData.payload))
   ) {
-    Logger.log(
+    Logger.info(
       `[handleAppData]: Cannot delete data because ${appData.payload.toString()} is not a string or string[]`
     );
     return;
@@ -356,7 +291,7 @@ const handleRequestDelData: HandlerFunction = async (
 
 const handleRequestGetConfig: HandlerFunction = async (app): Promise<void> => {
   ServerMessageBus.notify("app:data", { type: "config", payload: {} });
-  Logger.log(
+  Logger.warn(
     `[handleAppData]: ${app} tried accessing "Config" data type which is depreciated and no longer in use!`
   );
 };
@@ -370,10 +305,10 @@ const handleRequestGetConfig: HandlerFunction = async (app): Promise<void> => {
 const handleRequestGetSettings: HandlerFunction = async (
   app
 ): Promise<void> => {
-  Logger.log(
-    `[handleAppData]: App is requesting settings. Returning:`,
-    Data.settings
+  Logger.info(
+    `[handleAppData]: App is requesting settings`
   );
+  Logger.debug(`[handleAppData]: Returning Settings:`, Data.settings);
   ServerMessageBus.notify("app:data", {
     type: "settings",
     payload: Data.settings,
@@ -390,14 +325,14 @@ const handleRequestDelSettings: HandlerFunction = async (
   app,
   appData
 ): Promise<void> => {
-  Logger.log(
+  Logger.info(
     `[handleAppData]: ${app} is deleting settings: ${appData.payload.toString()}`
   );
   if (
     !appData.payload ||
     (typeof appData.payload !== "string" && !Array.isArray(appData.payload))
   ) {
-    Logger.log(
+    Logger.warn(
       `[handleAppData]: Cannot delete settings because ${appData.payload.toString()} is not a string or string[]`
     );
     return;
@@ -423,10 +358,8 @@ const handleRequestGetInput: HandlerFunction = async (app, appData) => {
     acc[key] = "arbData";
     return acc;
   }, {});
-  Logger.log(
-    `[handleAppData]: App is requesting input. Returning:`,
-    templateData
-  );
+  Logger.info(`[handleAppData]: App is requesting input`);
+  Logger.debug(`[handleAppData]: Returning Input:`, templateData);
   ServerMessageBus.notify("app:data", { type: "input", payload: templateData });
 };
 
@@ -460,7 +393,7 @@ const handleSendToClient: RequestHandler = {
 };
 const handleSendToApp: RequestHandler = {
   default: async (app, appData): Promise<void> => {
-    Logger.log("Sent data ", appData.payload, " to other app");
+    Logger.info("Sent data ", appData.payload, " to other app");
   },
 };
 
@@ -501,8 +434,8 @@ const handleData: TypeHandler = {
   key: handleKey,
   action: handleAction,
   default: handleDefault,
-  // step: { default: () => {} },
-  // task: { default: () => {} }
+  step: { default: () => {} },
+  task: { default: () => {} }
 };
 
 /**
