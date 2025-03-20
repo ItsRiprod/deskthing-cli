@@ -5,18 +5,20 @@ import { ClientService } from "./clientService"
 import { ClientMessageBus } from "./clientMessageBus"
 import { ClientLogger } from "./clientLogger"
 import { clientConfig } from "./clientConfig"
+import { FromDeviceData, FromDeviceDataEvents, SongData } from '@deskthing/types'
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [manifest, setManifest] = useState<any>()
   const [isViteServerConnected, setIsViteServerConnected] = useState(false)
   const [connectionAttempts, setConnectionAttempts] = useState(0)
+  const [songData, setSongData] = useState<SongData>(sampleSongs)
 
   const viteDevUrl = useMemo(() => {
     return clientConfig.viteLocation + ":" + clientConfig.vitePort
   }, [clientConfig])
 
-  const send = (data: any) => {
+  const send = (data: FromDeviceData) => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       const augmentedData = { ...data, source: "deskthing" }
       iframeRef.current.contentWindow.postMessage(augmentedData, "*")
@@ -55,10 +57,19 @@ export const DevWrapper: React.FC = () => {
     }
   }, [connectionAttempts])
 
+  useEffect(() => {
+    send({ type: FromDeviceDataEvents.MUSIC, app: 'client', payload: songData })
+  }, [songData])
+
   const handleMusic = (data) => {
     if (data.type == "get") {
-      ClientLogger.debug("Get request for music, Sending music", sampleSongs)
-      send({ type: "music", app: "client", payload: sampleSongs })
+      ClientLogger.debug("Get request for music, Sending music", songData)
+      ClientService.sendToApp({
+        type: 'get',
+        request: 'song',
+        app: data.app || manifest?.id || "unknownId",
+      })
+      send({ type: FromDeviceDataEvents.MUSIC, app: "client", payload: songData })
     }
   }
 
@@ -67,7 +78,7 @@ export const DevWrapper: React.FC = () => {
     if (data.type == "get") {
       ClientLogger.debug("Get request for settings, Sending settings")
       ClientService.requestSettings((settings) => {
-        send({ type: "settings", app: "client", payload: settings })
+        send({ type: FromDeviceDataEvents.SETTINGS, app: "client", payload: settings })
       })
     }
   }
@@ -76,7 +87,7 @@ export const DevWrapper: React.FC = () => {
   const handleApps = (data: { type: string }) => {
     if (data.type == "get") {
       ClientLogger.debug("Get request for apps, Sending apps", sampleApps)
-      send({ type: "apps", app: "client", payload: sampleApps })
+      send({ type: FromDeviceDataEvents.APPS, app: "client", payload: sampleApps })
     }
   }
 
@@ -100,7 +111,7 @@ export const DevWrapper: React.FC = () => {
       ClientService.requestManifest((manifest) => {
         ClientLogger.debug('Sending manifest', manifest)
         send({
-          type: "manifest",
+          type: FromDeviceDataEvents.MANIFEST,
           app: "client",
           payload: manifest,
         })
@@ -184,6 +195,11 @@ export const DevWrapper: React.FC = () => {
     window.addEventListener("message", handleIframeEvent)
     const unsubscribe = ClientMessageBus.subscribe("client:request", (data) => {
       ClientLogger.debug("Received message from server", data)
+      if (data.app == 'client') {
+        if (data.type == 'song') {
+          setSongData(prev => ({...prev, ...data.payload}))
+        }
+      }
       send(data)
     })
 

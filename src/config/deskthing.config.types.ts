@@ -82,7 +82,12 @@ export type DeskThingServerConfig = {
     settings?: Record<string, any>
     input?: Record<string, any>
     task?: Record<string, any>
-  }
+  };
+  /**
+   * The interval in seconds at which to refresh the music data. 0 is disabled
+   * @default 0
+   */
+  refreshInterval: number;
 };
 
 export type DeskThingClientConfig = {

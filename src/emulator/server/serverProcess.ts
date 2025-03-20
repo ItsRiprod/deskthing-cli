@@ -1,10 +1,40 @@
-import { pathToFileURL } from "url";
+import { pathToFileURL } from "node:url";
+import { workerData, parentPort } from "node:worker_threads"
 
-process.on("SIGTERM", () => {
-  process.exit(0);
+// Set environment variables from workerData
+Object.entries(workerData).forEach(([key, value]) => {
+  process.env[key] = value as string
 });
 
+function setupConsoleCapture() {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+  const originalConsoleWarn = console.warn;
+  const originalConsoleInfo = console.info;
+
+  console.log = (...args) => {
+    parentPort?.postMessage({ log: args.map(arg => String(arg)).join(' ') });
+    originalConsoleLog(...args);
+  };
+
+  console.error = (...args) => {
+    parentPort?.postMessage({ error: args.map(arg => String(arg)).join(' ') });
+    originalConsoleError(...args);
+  };
+
+  console.warn = (...args) => {
+    parentPort?.postMessage({ log: args.map(arg => String(arg)).join(' ') });
+    originalConsoleWarn(...args);
+  };
+
+  console.info = (...args) => {
+    parentPort?.postMessage({ log: args.map(arg => String(arg)).join(' ') });
+    originalConsoleInfo(...args);
+  };
+}
+
 const setupServer = async () => {
+  setupConsoleCapture()
   process.env.DESKTHING_ENV = "development";
 
   const serverPath = process.env.SERVER_INDEX_PATH;
@@ -14,7 +44,7 @@ const setupServer = async () => {
 
   const serverUrl = pathToFileURL(serverPath).href;
 
-  process.send?.({
+  parentPort?.postMessage({
     type: "server:log",
     payload: `Starting up... ${serverUrl}`,
   });
@@ -22,34 +52,21 @@ const setupServer = async () => {
   // keep alive
 
   const importDeskThing = async () => {
-    const { DeskThing } = await import(serverUrl);
-    process.send?.({
-      type: "server:log",
-      payload: "DeskThing module loaded successfully.",
-    });
+    try {
 
-    // Handle messages from parent process
-    process.on("message", (message: any) => {
-      if (message.type === "app:data") {
-        handleAppRequest(message.payload);
-      }
-    });
-
-    DeskThing.start({
-      toServer: (payload: any) => {
-        process.send?.({ type: "server:data", payload }); // Send data to parent
-      },
-      SysEvents: (_event: any, _listener: any) => {
-        return () => {};
-      },
-    });
-
-    async function handleAppRequest(data: any) {
-      await DeskThing.toClient(data);
+      await import(serverUrl);
       process.send?.({
         type: "server:log",
-        payload: `Handled request: ${JSON.stringify(data)}`,
+        payload: "DeskThing module loaded successfully.",
       });
+    } catch (error) {
+      const err = error as Error;
+      console.error("\x1b[31m%s\x1b[0m", "Critical error in serverProcess: ", err);
+      parentPort?.postMessage?.({
+        type: "server:log",
+        payload: `Failed to load DeskThing: ${err?.message}`,
+      });
+      throw error
     }
   };
 
@@ -57,11 +74,7 @@ const setupServer = async () => {
     await importDeskThing();
   } catch (error) {
     const err = error as Error;
-    console.log("\x1b[31m%s\x1b[0m", "Critical error in serverProcess: ", err);
-    process.send?.({
-      type: "server:log",
-      payload: `Failed to load DeskThing: ${err?.message}`,
-    });
+    console.error("\x1b[31m%s\x1b[0m", "Critical error in serverProcess: ", err);
     process.exit(1);
   }
 };

@@ -1,7 +1,7 @@
-import { getServerData } from './coms'
-import { getManifestDetails } from './manifestDetails'
-import { Logger } from '../services/logger'
-import { ServerMessageBus } from './serverMessageBus'
+import { getServerData } from '../server/coms'
+import { getManifestDetails } from '../server/manifestDetails'
+import { Logger } from './logger'
+import { ServerMessageBus } from '../server/serverMessageBus'
 import { DeskThingConfig } from '../../config/deskthing.config'
 
 export class ServerService {
@@ -45,7 +45,8 @@ export class ServerService {
     ServerMessageBus.publish('client:request', {
       type: data.type,
       payload: data.payload,
-      request: data.request
+      request: data.request,
+      app: data.app
     })
   }
 

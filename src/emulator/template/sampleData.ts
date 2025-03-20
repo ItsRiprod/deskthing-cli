@@ -1,4 +1,6 @@
-export const sampleSongs = 
+import { App, PlatformTypes, SongData, TagTypes } from "@deskthing/types"
+
+export const sampleSongs: SongData = 
   {
     album: "Random Access Memories",
     artist: "Daft Punk",
@@ -16,7 +18,7 @@ export const sampleSongs =
     track_duration: 369000,
     track_progress: 145000,
     volume: 75,
-    thumbnail: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    thumbnail: 'https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647',
     device: "Desktop Speaker",
     id: "track_001",
     device_id: "device_001",
@@ -32,38 +34,45 @@ export const sampleSongs =
     }
   }
 
-  export const sampleApps = [
+  export const sampleApps: App[] = [
     {
       name: "sample-app-1",
       manifest: {
         id: "sample-app-1",
-        requires: [ ],
+        requires: [],
         version: "1.0.0",
         description: "Sample App 1",
         author: "Sample Author",
-        platforms: ["windows", "mac"],
-        tags: ["utilityOnly"],
+        platforms: [PlatformTypes.WINDOWS, PlatformTypes.ANDROID],
+        tags: [TagTypes.UTILITY_ONLY],
         requiredVersions: {
           server: "1.0.0",
           client: "1.0.0"
         }
-      }
+      },
+      enabled: false,
+      running: false,
+      timeStarted: 0,
+      prefIndex: 0
     },
     {
       name: "sample-app-2",
       manifest: {
         id: "sample-app-2",
-        requires: [ ],
+        requires: [],
         version: "1.0.0",
         description: "Sample App 2",
         author: "Sample Author",
-        platforms: ["windows", "mac"],
-        tags: ["webappOnly"],
+        platforms: [PlatformTypes.WINDOWS, PlatformTypes.ANDROID],
+        tags: [TagTypes.AUDIO_SOURCE],
         requiredVersions: {
           server: "1.0.0",
           client: "1.0.0"
         }
-      }
+      },
+      enabled: false,
+      running: false,
+      timeStarted: 0,
+      prefIndex: 0
     }
-  ];
-  
+  ];  

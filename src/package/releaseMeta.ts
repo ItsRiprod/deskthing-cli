@@ -2,8 +2,7 @@ import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { loadConfigs } from './config';
-import { sanitizeDeskThing } from './sanitizeData';
-import { PlatformTypes, AppReleaseMeta, TagTypes } from '@deskthing/types';
+import { PlatformTypes, AppReleaseMeta } from '@deskthing/types';
 
 const getLatestReleasesFromGithubURLs = (releaseAssetId: string, potentialUrls: string[]): string => {
     for (const url of potentialUrls) {
@@ -78,7 +77,7 @@ export const generateRelease = async () => {
         homepage: manifestJson.homepage || packageJson.homepage || "",
         repository: manifestJson.repository || packageJson.repository?.url || "",
         updateUrl: updateUrl,
-        tags: manifestJson.tags || [TagTypes.WEB_APP_ONLY],
+        tags: manifestJson.tags || ["webappOnly" as any],
         requiredVersions: manifestJson.requiredVersions || {
             server: `>=${manifestJson.compatible_server ? ('0.' + manifestJson.compatible_server) : packageJson.version}`,
             client: `>=${manifestJson.compatible_client ? ('0.' + manifestJson.compatible_client) : packageJson.version}`
@@ -99,7 +98,6 @@ export async function createReleaseFile() {
 
     
     try {
-        await sanitizeDeskThing()
         const release = await generateRelease();
         writeFileSync(releaseFilePath, JSON.stringify(release, null, 2));
         console.log('\x1b[32m%s\x1b[0m', 'Release file created successfully');

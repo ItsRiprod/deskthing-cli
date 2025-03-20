@@ -9,7 +9,7 @@ import { packageClient } from './packageClient'
 import { stat, writeFile } from 'fs/promises'
 import { initConfig } from './config/deskthing.config'
 
-await initConfig(true)
+await initConfig({ silent: true })
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const thisPackage = (await import('../package.json', { assert: { type: 'json' } })
@@ -30,8 +30,12 @@ console.log(`
   yargs(hideBin(process.argv))
   .scriptName('deskthing')
   .command('dev', 'Start development server', (yargs) => {
-    return yargs
-  }, async () => {
+    return yargs.option('debug', {
+      type: 'boolean',
+      default: false,
+      description: 'Enable debug mode'
+    })
+  }, async (argv) => {
     console.log(`------- \x1b[1mdev\x1b[0m -- init -- update -- package --------`)
     console.log('\n\n\x1b[1m🚀 Starting development server...\x1b[0m\n\n')
     // Install tsm if not already installed
@@ -47,7 +51,7 @@ console.log(`
     const indexPath = join(__dirname, './emulator/index.js')
     const fileUrl = `file://${indexPath.replace(/\\/g, '/')}`
     const { startDevelopment } = await import(fileUrl)
-    await startDevelopment()
+    await startDevelopment({ debug: argv.debug })
   })
   .command('update', 'Update dependencies and configurations', (yargs) => {
     return yargs.option('force', {
@@ -58,7 +62,7 @@ console.log(`
   }, async (argv) => {
     console.log(`------- dev -- init -- \x1b[1mupdate\x1b[0m -- package --------`)
     console.log('Updating dependencies and configurations...')
-    execSync('npm create deskthing@latest --update', { stdio: 'inherit' })
+    execSync('npx create-deskthing@latest --update', { stdio: 'inherit' })
   })
   .command('package', 'Package and zip up your app. Also generates needed manifest files', (yargs) => {
     return yargs

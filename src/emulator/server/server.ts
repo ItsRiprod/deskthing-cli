@@ -1,181 +1,210 @@
-import { FSWatcher, watch as fsWatch } from 'fs'
-import { ChildProcess, fork } from 'child_process'
-import { Logger } from '../services/logger'
+import { FSWatcher, watch as fsWatch } from "fs";
+import { Logger } from "../services/logger";
 
-import { handleDataFromApp } from './coms'
+import { handleDataFromApp } from "./coms";
 
-import { AppManifest, getManifestDetails } from './manifestDetails'
-import { ServerMessageBus } from './serverMessageBus'
-import { dirname, resolve } from 'path'
-import { fileURLToPath } from 'url'
-import { DeskThingConfig } from '../../config/deskthing.config'
-import { LOGGING_LEVELS } from '@deskthing/types'
+import { Worker } from "node:worker_threads";
+
+import { AppManifest, getManifestDetails } from "./manifestDetails";
+import { ServerMessageBus } from "./serverMessageBus";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
+import { DeskThingConfig } from "../../config/deskthing.config";
+import { LOGGING_LEVELS } from "@deskthing/types";
+import { MusicService } from "../services/musicService";
 
 export class ServerRunner {
-  private serverProcess: ChildProcess | null = null
-  private watcher: FSWatcher | null = null
-  private manifest: AppManifest | null = null
-  private restartTimeout: NodeJS.Timeout | null = null
+  private serverWorker: Worker | null = null;
+  private watcher: FSWatcher | null = null;
+  private manifest: AppManifest | null = null;
+  private restartTimeout: NodeJS.Timeout | null = null;
+  private musicService = new MusicService();
 
   async start() {
-    Logger.debug('Starting server wrapper...')
-    this.startServerProcess()
-    this.watchWithFsAPI()
-    this.manifest = getManifestDetails()
-    this.startServerMessageBus()
+    Logger.debug("Starting server wrapper...");
+    this.startServerProcess();
+    this.watchWithFsAPI();
+    this.manifest = getManifestDetails();
+    this.startServerMessageBus();
   }
 
   private startServerMessageBus() {
-    ServerMessageBus.initialize(DeskThingConfig.development.client.linkPort)
-    ServerMessageBus.subscribe('app:data', (payload) => {
-      if (this.serverProcess) {
-        this.serverProcess.send({ type: 'app:data', payload: payload })
+    ServerMessageBus.initialize(DeskThingConfig.development.client.linkPort);
+    ServerMessageBus.subscribe("app:data", (payload) => {
+      if (this.serverWorker) {
+        this.serverWorker.postMessage({ type: "data", payload: payload });
       }
-    })
-    ServerMessageBus.subscribe('auth:callback', (payload) => {
-      if (this.serverProcess) {
-        this.serverProcess.send({ type: 'app:data', payload: {
-          type: 'callback-data',
-          payload: payload.code
-        } })
+    });
+    ServerMessageBus.subscribe("auth:callback", (payload) => {
+      if (this.serverWorker) {
+        this.serverWorker.postMessage({
+          type: "data",
+          payload: {
+            type: "callback-data",
+            payload: payload.code,
+          },
+        });
       }
-    })
+    });
   }
 
   private async startServerProcess() {
-    Logger.debug('Starting server process...')
+    Logger.debug("Starting server process...");
     try {
       const projectRoot = process.cwd();
       const __dirname = dirname(fileURLToPath(import.meta.url));
-      const processPath = resolve(__dirname, 'serverProcess.ts');
-      const serverPath = resolve(projectRoot, 'server', 'index.ts');
-      const rootPath = resolve(projectRoot, 'server');
-      // this.serverProcess = spawn('node', [
-      //   '-r', 'ts-node/esm',
-      //   '--experimental-specifier-resolution=node',
-      //   '--experimental-json-modules',
-      //   processPath
-      // ], {
-      //   env: { 
-      //     ...process.env,
-      //     SERVER_INDEX_PATH: serverPath,
-      //     NODE_OPTIONS: '--experimental-specifier-resolution=node'
-      //   },
-      //   stdio: ['inherit', 'inherit', 'inherit', 'ipc']
-      // })
-      if (this.serverProcess) {
-        this.serverProcess.kill('SIGTERM')
-        this.serverProcess = null
-        Logger.info('Waiting for server to exit...')
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      const workerPath = resolve(__dirname, "serverProcess.js");
+      const serverPath = resolve(projectRoot, "server", "index.ts");
+      const rootPath = resolve(projectRoot, "server");
+
+      if (this.serverWorker) {
+        this.serverWorker.terminate();
+        this.serverWorker = null;
+        Logger.info("Waiting for server to exit...");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-        this.serverProcess = fork(processPath, [], {
-          execArgv: ['--loader', 'tsm'],
-          env: { 
-            ...process.env,
-            NODE_ENV: 'development',
-            SERVER_INDEX_PATH: serverPath,
-            DESKTHING_ROOT_PATH: rootPath
-          },
-          stdio: 'pipe'
-        })
-
-        this.serverProcess.stdout?.on('data', (data) => {
-          Logger.clientLog(LOGGING_LEVELS.LOG, data.toString())
-        })
-
-        this.serverProcess.stderr?.on('data', (data) => {
-          Logger.clientLog(LOGGING_LEVELS.ERROR, data.toString())
-        })
-
-      process.env.SERVER_INDEX_PATH = serverPath
-      
-      Logger.debug('Resolved processPath:', processPath);
-
-      this.serverProcess.on("message", (message: { type: string; payload?: any }) => {
-        if (message.type === "server:log" && message.payload) {
-          Logger.debug("[childprocess]", message.payload);
-        } else if (message.type === "server:data") {
-          // handle data from the deskthing
-          handleDataFromApp(this.manifest?.id || "testapp", message.payload);
-        } else {
-          Logger.error("Unknown message type:", message.type);
-        }
+      this.serverWorker = new Worker(workerPath, {
+        workerData: {
+          SERVER_INDEX_PATH: serverPath,
+          DESKTHING_ROOT_PATH: rootPath,
+          NODE_ENV: "development",
+        },
+        execArgv: ['--loader', 'tsm']
       });
 
-      this.serverProcess.on('error', (error) => {
-        Logger.error('Experienced an error in the server wrapper:', error)
-      })
+      this.serverWorker.stdout?.on("data", (data) => {
+        Logger.clientLog(LOGGING_LEVELS.LOG, data.toString());
+      });
 
-      this.serverProcess.on('close', (code, signal) => {
-        if (signal == 'SIGTERM') {
-          return
-        }
-        
-        if (!code || !signal) {
-          Logger.warn('server wrapper unexpectedly closed', code, signal)
-        }
-        if (this.serverProcess) {
-          this.serverProcess.kill('SIGTERM')
-          this.serverProcess = null
-        }
-        Logger.debug(`Server process closed with code ${code} and signal ${signal}`)
-      })
+      this.serverWorker.stderr?.on("data", (data) => {
+        Logger.clientLog(LOGGING_LEVELS.ERROR, data.toString());
+      });
 
-      Logger.debug('Server process started')
+      this.musicService.start();
+
+      setTimeout(() => {
+        if (this.serverWorker?.postMessage) {
+          this.serverWorker.postMessage({
+            type: "start",
+          });
+        }
+      }, 500);
+
+      process.env.SERVER_INDEX_PATH = serverPath;
+
+      Logger.debug("Resolved processPath:", workerPath);
+
+      this.serverWorker.on(
+        "message",
+        (message: {
+          type: string;
+          payload?: any;
+          log?: string;
+          error?: string;
+        }) => {
+          switch (message.type) {
+            case "server:log":
+              Logger.debug("[worker]", message.payload);
+              return;
+            case "server:data":
+            case "data":
+              handleDataFromApp(
+                this.manifest?.id || "testapp",
+                message.payload
+              );
+              return;
+            case "server:error":
+              return;
+            case "started":
+              Logger.debug("[worker]", "started");
+              return;
+            case "stopped":
+              Logger.debug("[worker]", "stopped");
+              return;
+          }
+          if (message.log) {
+            Logger.clientLog(LOGGING_LEVELS.LOG, message.log);
+          } else if (message.error) {
+            Logger.clientLog(LOGGING_LEVELS.ERROR, message.error);
+          } else {
+            Logger.error("Unknown message type:", message.type);
+          }
+        }
+      );
+
+      this.serverWorker.on("error", (error) => {
+        Logger.error("Experienced an error in the server wrapper:", error);
+      });
+
+      this.serverWorker.on("exit", (code) => {
+        if (code !== 0) {
+          Logger.warn(`Server worker exited with code ${code}`);
+        }
+        Logger.debug(`Server worker exited with code ${code}`);
+        this.serverWorker = null;
+      });
+
+      Logger.debug("Server worker started");
     } catch (error) {
-      Logger.error('Server process failed to start: ', error)
+      Logger.error("Server worker failed to start: ", error);
     }
   }
-
   private watchWithFsAPI() {
-    let isInitialScan = true
-    const projectRoot = process.cwd()
-    const serverPath = resolve(projectRoot, 'server')
-    
-    this.watcher = fsWatch(serverPath, { recursive: true }, 
+    let isInitialScan = true;
+    const projectRoot = process.cwd();
+    const serverPath = resolve(projectRoot, "server");
+
+    this.watcher = fsWatch(
+      serverPath,
+      { recursive: true },
       (eventType, filename) => {
-        if (filename?.endsWith('.ts')) {
-          if (isInitialScan) return
-          Logger.info(`📝 File ${filename} changed, queuing server restart...`)
-          this.queueRestart()
+        if (filename?.endsWith(".ts")) {
+          if (isInitialScan) return;
+          Logger.info(`📝 File ${filename} changed, queuing server restart...`);
+          this.queueRestart();
         }
-    })
+      }
+    );
 
     setTimeout(() => {
-      isInitialScan = false
-    }, 1000)
+      isInitialScan = false;
+    }, 1000);
   }
 
   async stop() {
-    this.watcher?.close()
+    this.watcher?.close();
     if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout)
-      this.restartTimeout = null
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
     }
-    if (this.serverProcess) {
-      this.serverProcess.kill('SIGTERM')
-      this.serverProcess = null
+    if (this.serverWorker) {
+      this.serverWorker.terminate();
+      this.serverWorker = null;
     }
   }
 
   private async queueRestart() {
     if (this.restartTimeout) {
-      clearTimeout(this.restartTimeout)
+      clearTimeout(this.restartTimeout);
     }
     this.restartTimeout = setTimeout(() => {
-      this.restartServer()
-      this.restartTimeout = null
-      Logger.info(`🕛 Waited ${DeskThingConfig.development.server.editCooldownMs || 1000}ms. Restarting...`)
-    }, DeskThingConfig.development.server.editCooldownMs || 1000)
+      this.restartServer();
+      this.restartTimeout = null;
+      Logger.info(
+        `🕛 Waited ${
+          DeskThingConfig.development.server.editCooldownMs || 1000
+        }ms. Restarting...`
+      );
+    }, DeskThingConfig.development.server.editCooldownMs || 1000);
   }
 
   private async restartServer() {
-    Logger.info('🔄 Restarting server...')
-    if (this.serverProcess) {
-      this.serverProcess.kill('SIGTERM')
-      this.serverProcess = null
+    this.musicService.stop();
+    Logger.info("🔄 Restarting server...");
+    if (this.serverWorker) {
+      this.serverWorker.terminate();
+      this.serverWorker = null;
     }
-    this.startServerProcess()
+    this.startServerProcess();
   }
 }

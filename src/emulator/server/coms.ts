@@ -1,7 +1,7 @@
-import { ServerService } from "./serverService";
+import { ServerService } from "../services/serverService";
 import { ServerMessageBus } from "./serverMessageBus";
 import { Logger } from "../services/logger";
-import { AppSettings, LOGGING_LEVELS, SEND_TYPES, SETTING_TYPES, SettingsType } from "@deskthing/types"
+import { AppSettings, LOGGING_LEVELS, SEND_TYPES } from "@deskthing/types"
 import { DeskThingConfig } from "../../config/deskthing.config"
 import { exec } from 'child_process'
 
@@ -123,9 +123,11 @@ const handleRequestSet: HandlerFunction = async (
  */
 const handleRequestOpen: HandlerFunction = async (_app, appData) => {
   Logger.debug(`[handleOpen]: Opening ${appData.payload}`);
-  
+
   const encodedUrl = encodeURI(appData.payload);
   
+  Logger.info(`[openUrl]: If your browser doesn't automatically open, try manually clicking the url:\n\n${encodedUrl}\n\n`);
+
   try {
     if (process.platform === 'win32') {
       // For Windows, use the shell option to avoid command line parsing issues
@@ -434,8 +436,9 @@ const handleData: TypeHandler = {
   key: handleKey,
   action: handleAction,
   default: handleDefault,
-  step: { default: () => {} },
-  task: { default: () => {} }
+  step: { default: () => { } },
+  task: { default: () => { } },
+  [SEND_TYPES.SONG]: {}
 };
 
 /**

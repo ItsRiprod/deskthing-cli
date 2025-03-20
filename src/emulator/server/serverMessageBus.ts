@@ -50,6 +50,7 @@ export class ServerMessageBus {
     // Send to client via IPC/WebSocket
     this.ws.clients.forEach((client) => {
       if (client?.readyState === WebSocket.OPEN) {
+        Logger.debug('Sending data through messageBus', event, data)
         client.send(JSON.stringify({ event, data }));
       } else {
         console.error('Unable to send data because readystate of client is ', client?.readyState)

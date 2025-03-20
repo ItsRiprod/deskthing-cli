@@ -4,6 +4,7 @@ import { readdir, stat, cp, rm } from "fs/promises";
 import { loadConfigs } from "./config";
 import { build as buildEsbuild } from "esbuild";
 import { build as buildVite } from "vite";
+import viteLegacyPlugin from "@vitejs/plugin-legacy"
 
 async function buildServer() {
   await buildEsbuild({
@@ -11,8 +12,8 @@ async function buildServer() {
     bundle: true,
     platform: "node",
     outfile: "dist/server/index.js",
-    target: "es2020",
-    format: "cjs",
+    target: "ESNext",
+    format: "esm",
     resolveExtensions: [".ts", ".js"],
     sourcemap: true,
   });
@@ -35,8 +36,8 @@ async function buildWorkers() {
       bundle: true,
       platform: "node",
       outdir: "dist/server/workers",
-      target: "es2020",
-      format: "cjs",
+      target: "ESNext",
+      format: "esm",
       resolveExtensions: [".ts", ".js"],
       sourcemap: true
     });
@@ -48,6 +49,9 @@ async function buildClient() {
   await buildVite({
     configFile: "vite.config.ts",
     base: "./",
+    plugins: [viteLegacyPlugin({
+      targets: ["Chrome 69"]
+    })],
     build: {
       outDir: "dist/client",
       target: "es2020",
