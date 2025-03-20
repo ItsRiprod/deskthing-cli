@@ -16,6 +16,18 @@ async function buildServer() {
     format: "esm",
     resolveExtensions: [".ts", ".js"],
     sourcemap: true,
+    banner: {
+      js: `
+        // ESM shims for Node.js built-in modules
+        import { createRequire } from 'module';
+        import { fileURLToPath } from 'url';
+        import path from 'path';
+        
+        const require = createRequire(import.meta.url);
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+      `
+    }
   });
 }
 
@@ -39,7 +51,19 @@ async function buildWorkers() {
       target: "ESNext",
       format: "esm",
       resolveExtensions: [".ts", ".js"],
-      sourcemap: true
+      sourcemap: true,
+      banner: {
+        js: `
+          // ESM shims for Node.js built-in modules
+          import { createRequire } from 'module';
+          import { fileURLToPath } from 'url';
+          import path from 'path';
+          
+          const require = createRequire(import.meta.url);
+          const __filename = fileURLToPath(import.meta.url);
+          const __dirname = path.dirname(__filename);
+        `
+      }
     });
   } catch (error) {
     console.error("\x1b[31mError building workers:\x1b[0m", error);
