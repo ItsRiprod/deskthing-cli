@@ -32,6 +32,7 @@ export class ServerRunner {
     ServerMessageBus.initialize(DeskThingConfig.development.client.linkPort);
     ServerMessageBus.subscribe("app:data", (payload) => {
       if (this.serverWorker) {
+        Logger.debug(`[ServerMessageBus]: Received data from app: ${payload.type}`);
         this.serverWorker.postMessage({ type: "data", payload: payload });
       }
     });
@@ -63,13 +64,20 @@ export class ServerRunner {
         Logger.info("Waiting for server to exit...");
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
+
+      const tsConfigPath = resolve(process.cwd(), "tsconfig.node.json")
+
       this.serverWorker = new Worker(workerPath, {
         workerData: {
           SERVER_INDEX_PATH: serverPath,
           DESKTHING_ROOT_PATH: rootPath,
           NODE_ENV: "development",
+          TSM_NODE_PROJECT: tsConfigPath
         },
-        execArgv: ['--loader', 'tsm']
+        execArgv: ['--loader', 'tsm'],
+        env: {
+          TSM_NODE_PROJECT: tsConfigPath
+        }
       });
 
       this.serverWorker.stdout?.on("data", (data) => {
@@ -187,6 +195,7 @@ export class ServerRunner {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
     }
+    Logger.info(`🕛 Queued restart in ${DeskThingConfig.development.server.editCooldownMs || 1000}ms`);
     this.restartTimeout = setTimeout(() => {
       this.restartServer();
       this.restartTimeout = null;
@@ -200,6 +209,9 @@ export class ServerRunner {
 
   private async restartServer() {
     this.musicService.stop();
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout)
+    }
     Logger.info("🔄 Restarting server...");
     if (this.serverWorker) {
       this.serverWorker.terminate();

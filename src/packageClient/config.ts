@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { ClientManifest } from '@deskthing/types';
   export const loadConfigs = () => {
     const packageJsonPath = join(process.cwd(), 'package.json');
-    const manifestJsPath = join(process.cwd(), 'public/manifest.js');
+    const manifestJsPath = join(process.cwd(), 'public/manifest.json');
     
     let packageJson;
     let manifestJson: ClientManifest
@@ -16,10 +16,9 @@ import { ClientManifest } from '@deskthing/types';
     
     try {
         const manifestContent = readFileSync(manifestJsPath, 'utf8');
-        const manifestString = manifestContent.substring(manifestContent.indexOf('{'), manifestContent.lastIndexOf('}') + 1);
-        manifestJson = JSON.parse(manifestString)
+        manifestJson = JSON.parse(manifestContent)
     } catch (error) {
-        throw new Error(`\x1b[33m❌ Failed to load manifest.js from ${manifestJsPath}. Does it exist?\x1b[0m`)
+        throw new Error(`\x1b[33m❌ Failed to load manifest.json from ${manifestJsPath}. Does it exist?\x1b[0m`)
     }
 
     return {

@@ -1,8 +1,9 @@
 import { join, resolve } from "path";
 import { createRequire } from "module";
 import { DeepPartial, DeskthingConfig } from "./deskthing.config.types";
-import { stat } from "fs/promises";
-import { pathToFileURL } from "url"
+import { readFile, stat } from "fs/promises";
+import { pathToFileURL } from "url";
+import { existsSync } from "fs"
 
 export function defineConfig(
   config: DeepPartial<DeskthingConfig>
@@ -34,61 +35,142 @@ const defaultConfig: DeskthingConfig = {
   },
 };
 
-async function loadTsConfig(path: string): Promise<any> {
+async function loadTsConfig(
+  path: string,
+  debug: boolean = false
+): Promise<any> {
   try {
     const require = createRequire(import.meta.url);
+
+    try {
+      require("ts-node/register");
+    } catch (e) {
+      if (debug) console.log(`ts-node not available, continuing anyway...`);
+      // ts-node not available, continue anyway
+    }
 
     try {
       const configModule = require(path);
       return configModule.default || configModule;
     } catch (e) {
-      // console.error("Error loading TypeScript config:", path, e);
-      return null;
+      if (debug)
+        console.error(
+          "\x1b[91mError loading TypeScript config:",
+          path,
+          e,
+          "\x1b[0m"
+        );
+      throw e;
     }
   } catch (error) {
-    // console.error("Error loading config:", error);
-    return null;
+    if (debug) console.error("\x1b[91mError loading config:", error, "\x1b[0m");
+    throw error;
   }
 }
 
-export const getConfigFromFile = async (debug: boolean = false) => {
+const manuallyParseConfig = async (
+  path: string,
+  debug: boolean = false
+): Promise<DeskthingConfig | null> => {
   try {
-    const rootUrl = resolve(process.cwd(), "deskthing.config.ts");
-    const tsConfigPath = pathToFileURL(rootUrl).href;
     if (debug)
       console.log(
-        `(debug mode enabled) Loading config from ${tsConfigPath} file...`
+        `(debug mode enabled) Manually loading config from ${path} file and parsing manually (may cause errors)`
       );
+    const fileContent = await readFile(path, "utf-8");
 
-      try {
-        const configModule = await import(tsConfigPath);
-        if (debug) console.log(`Config loaded successfully from ${tsConfigPath}`);
-        return configModule.default || configModule;
-      } catch (importError) {
-        // Second attempt: Try to use require with ts-node if direct import fails
-        if (debug) console.log(`Direct import failed, trying alternative method...`);
-        
-        try {
-          // Use createRequire for ESM compatibility
-          const require = createRequire(import.meta.url);
-          
-          // Try to load ts-node programmatically if available
-          try {
-            require('ts-node/register');
-          } catch (e) {
-            // ts-node not available, continue anyway
-          }
-          
-          const configModule = require(rootUrl);
-          return configModule.default || configModule;
-        } catch (requireError) {
-          if (debug) console.error(`All loading methods failed for ${rootUrl}`);
-          throw importError; // Throw the original error
-        }
-      }
+    // Extract the configuration object from the file content
+    const configMatch = fileContent.match(/defineConfig\(([\s\S]*?)\);?\s*$/);
+    if (!configMatch) {
+      throw new Error("Could not find config definition in file");
+    }
+
+    try {
+      const configStr = configMatch[1].trim();
+      // Remove any trailing commas that might break JSON parsing
+      const cleanConfigStr = configStr.replace(/,(\s*[}\]])/g, "$1");
+      // Parse as JSON after ensuring it's valid JSON format
+      const config = JSON.parse(cleanConfigStr);
+      return config;
+    } catch (parseError) {
+      if (debug)
+        console.error("\x1b[91mError parsing config:", parseError, "\x1b[0m");
+      throw parseError;
+    }
   } catch (e) {
     if (debug)
-      console.error("\x1b[91m(debug mode) Error loading config. Does it exist? :", e, "\x1b[0m");
+      console.error(
+        "\x1b[91m(debug mode enabled) Error loading config:",
+        e,
+        "\x1b[0m"
+      );
+    throw e;
+  }
+};
+
+const directConfigImport = async (
+  path: string,
+  debug: boolean = false
+): Promise<DeskthingConfig | null> => {
+  const tsConfigPath = pathToFileURL(path).href;
+  if (debug)
+    console.log(
+      `(debug mode enabled) Loading config from ${tsConfigPath} file...`
+    );
+
+  const configModule = await import(tsConfigPath);
+  if (debug) console.log(`Config loaded successfully from ${tsConfigPath}`);
+  return configModule.default || configModule;
+};
+
+export const getConfigFromFile = async (debug: boolean = false) => {
+  try {
+    let rootUrl = resolve(process.cwd(), "deskthing.config.ts");
+
+    if (!existsSync(rootUrl)) {
+      if (debug) console.log("deskthing.config.ts not found, trying deskthing.config.js");
+      rootUrl = resolve(process.cwd(), "deskthing.config.js");
+      if (!existsSync(rootUrl)) {
+        throw new Error("No config file found (tried both TS and JS files)");
+      }
+    }
+
+    // try direct config import
+    try {
+      const config = await directConfigImport(rootUrl, debug);
+      return config;
+    } catch (importError) {
+      // Second attempt: Try to use require with ts-node if direct import fails
+      if (debug)
+        console.log(`Direct import failed, trying alternative method...`);
+    }
+
+    // try loading require
+    try {
+      const config = await loadTsConfig(rootUrl, debug);
+      return config;
+    } catch (e) {
+      if (debug)
+        console.error("\x1b[91mError loading TS config:", e, "\x1b[0m");
+    }
+
+    if (debug) console.log("Trying to parse config manually...");
+
+    // try manually parsing config
+    try {
+      const config = await manuallyParseConfig(rootUrl, debug);
+      return config;
+    } catch (e) {
+      if (debug)
+        console.error("\x1b[91mError parsing config manually:", e, "\x1b[0m");
+    }
+  } catch (e) {
+    if (debug)
+      console.error(
+        "\x1b[91m(debug mode) Error loading config. Does it exist? :",
+        e,
+        "\x1b[0m"
+      );
     return null;
   }
 };

@@ -5,7 +5,7 @@ import { ClientService } from "./clientService"
 import { ClientMessageBus } from "./clientMessageBus"
 import { ClientLogger } from "./clientLogger"
 import { clientConfig } from "./clientConfig"
-import { FromDeviceData, FromDeviceDataEvents, SongData } from '@deskthing/types'
+import { Client, FromDeviceData, DEVICE_CLIENT, DESKTHING_EVENTS, SongData, ClientToDeviceData } from '@deskthing/types'
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -58,7 +58,7 @@ export const DevWrapper: React.FC = () => {
   }, [connectionAttempts])
 
   useEffect(() => {
-    send({ type: FromDeviceDataEvents.MUSIC, app: 'client', payload: songData })
+    send({ type: DEVICE_CLIENT.MUSIC, app: 'client', payload: songData })
   }, [songData])
 
   const handleMusic = (data) => {
@@ -69,7 +69,7 @@ export const DevWrapper: React.FC = () => {
         request: 'song',
         app: data.app || manifest?.id || "unknownId",
       })
-      send({ type: FromDeviceDataEvents.MUSIC, app: "client", payload: songData })
+      send({ type: DEVICE_CLIENT.MUSIC, app: "client", payload: songData })
     }
   }
 
@@ -78,7 +78,7 @@ export const DevWrapper: React.FC = () => {
     if (data.type == "get") {
       ClientLogger.debug("Get request for settings, Sending settings")
       ClientService.requestSettings((settings) => {
-        send({ type: FromDeviceDataEvents.SETTINGS, app: "client", payload: settings })
+        send({ type: DEVICE_CLIENT.SETTINGS, app: "client", payload: settings })
       })
     }
   }
@@ -87,7 +87,7 @@ export const DevWrapper: React.FC = () => {
   const handleApps = (data: { type: string }) => {
     if (data.type == "get") {
       ClientLogger.debug("Get request for apps, Sending apps", sampleApps)
-      send({ type: FromDeviceDataEvents.APPS, app: "client", payload: sampleApps })
+      send({ type: DEVICE_CLIENT.APPS, app: "client", payload: sampleApps })
     }
   }
 
@@ -111,7 +111,7 @@ export const DevWrapper: React.FC = () => {
       ClientService.requestManifest((manifest) => {
         ClientLogger.debug('Sending manifest', manifest)
         send({
-          type: FromDeviceDataEvents.MANIFEST,
+          type: DEVICE_CLIENT.MANIFEST,
           app: "client",
           payload: manifest,
         })
@@ -119,13 +119,13 @@ export const DevWrapper: React.FC = () => {
     }
   }
 
-  const handleAction = (data) => {
+  const handleAction = (data: Extract<ClientToDeviceData, { type: 'action' | 'key'}>) => {
     ClientLogger.debug('Handling action', data)
     if (data.type == 'action') {
       if (manifest) {
         ClientService.sendToApp({
           ...data,
-          app: data.app | manifest?.id || "unknownId",
+          app: data.app || manifest?.id || "unknownId",
         } as any)
       } else {
         ClientService.requestManifest((manifest) => {
@@ -136,6 +136,11 @@ export const DevWrapper: React.FC = () => {
           } as any)
         })
       }
+    } else {
+      ClientService.sendToApp({
+        ...data,
+        app: data.app || manifest?.id || "unknownId",
+      } as any)
     }
   }
 
@@ -155,7 +160,7 @@ export const DevWrapper: React.FC = () => {
       if (event.origin !== viteDevUrl) return
 
       // Forward iframe messages to server handler
-      const appDataRequest = event.data.payload
+      const appDataRequest = event.data.payload as ClientToDeviceData
 
       if (appDataRequest.app == "client") {
         if (appDataRequest.type === "get") {
@@ -164,10 +169,10 @@ export const DevWrapper: React.FC = () => {
           } else {
             ClientLogger.debug("Unknown request type: ", appDataRequest.request)
           }
-        } else if (appDataRequest.type === "button") {
+        } else if (appDataRequest.type as string === "button") {
           handleDefault(appDataRequest)
         } else if (appDataRequest.type === "key") {
-          handleDefault(appDataRequest)
+          handleAction(appDataRequest)
         } else if (appDataRequest.type === "action") {
           handleAction(appDataRequest)
         } else if (appDataRequest.type === "log") {
@@ -212,10 +217,54 @@ export const DevWrapper: React.FC = () => {
 
   // Update when iframe loads successfully
   const handleIframeLoad = () => {
+    ClientService.sendToApp({
+      type: DESKTHING_EVENTS.CLIENT_STATUS,
+      request: 'connected',
+      payload: {
+        id: 'deskthing-client',
+        connectionId: '1234567890',
+        connected: true,
+        timestamp: Date.now(),
+        currentApp: manifest.id
+      } as Client
+    } as any)
+    ClientService.sendToApp({
+      type: DESKTHING_EVENTS.CLIENT_STATUS,
+      request: 'opened',
+      payload: {
+        id: 'deskthing-client',
+        connectionId: '1234567890',
+        connected: true,
+        timestamp: Date.now(),
+        currentApp: manifest.id
+      } as Client
+    } as any)
     setIsViteServerConnected(true)
   }
 
   const handleIframeError = () => {
+    ClientService.sendToApp({
+      type: DESKTHING_EVENTS.CLIENT_STATUS,
+      request: 'disconnected',
+      payload: {
+        id: 'deskthing-client',
+        connectionId: '1234567890',
+        connected: false,
+        timestamp: Date.now(),
+        currentApp: undefined
+      } as Client
+    } as any)
+    ClientService.sendToApp({
+      type: DESKTHING_EVENTS.CLIENT_STATUS,
+      request: 'closed',
+      payload: {
+        id: 'deskthing-client',
+        connectionId: '1234567890',
+        connected: true,
+        timestamp: Date.now(),
+        currentApp: undefined
+      } as Client
+    } as any)
     setIsViteServerConnected(false)
     setConnectionAttempts((prev) => prev + 1)
   }

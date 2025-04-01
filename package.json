@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.10.18",
+  "version": "0.10.21",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",
@@ -41,7 +41,6 @@
     "build:index": "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --packages=external && tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist --skipLibCheck --isolatedModules --module ESNext"
   },
   "dependencies": {
-    "@deskthing/types": "^0.10.12",
     "@vitejs/plugin-legacy": "^6.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -51,6 +50,7 @@
     "zip-lib": "^1.0.5"
   },
   "devDependencies": {
+    "@deskthing/types": "^0.10.15",
     "@types/node": "^22.10.10",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
