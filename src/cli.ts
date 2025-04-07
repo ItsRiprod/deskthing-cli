@@ -54,15 +54,21 @@ console.log(`
     await startDevelopment({ debug: argv.debug })
   })
   .command('update', 'Update dependencies and configurations', (yargs) => {
-    return yargs.option('force', {
-      type: 'boolean',
-      default: false,
-      description: 'Force update all dependencies'
-    })
+    return yargs
+      .option('force', {
+        type: 'boolean',
+        default: false,
+        description: 'Force update all dependencies'
+      })
+      .option('no-overwrite', {
+        type: 'boolean',
+        default: false,
+        description: 'Do not overwrite existing files'
+      })
   }, async (argv) => {
     console.log(`------- dev -- init -- \x1b[1mupdate\x1b[0m -- package --------`)
     console.log('Updating dependencies and configurations...')
-    execSync('npx create-deskthing@latest --update', { stdio: 'inherit' })
+    execSync(`npx create-deskthing@latest --update ${argv['no-overwrite'] ? '--no-overwrite' : ''} ${argv.force ? '--force' : ''}`, { stdio: 'inherit' })
   })
   .command('package', 'Package and zip up your app. Also generates needed manifest files', (yargs) => {
     return yargs

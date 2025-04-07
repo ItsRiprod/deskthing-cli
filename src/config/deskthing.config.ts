@@ -3,7 +3,7 @@ import { createRequire } from "module";
 import { DeepPartial, DeskthingConfig } from "./deskthing.config.types";
 import { readFile, stat } from "fs/promises";
 import { pathToFileURL } from "url";
-import { existsSync } from "fs"
+import { existsSync } from "fs";
 
 export function defineConfig(
   config: DeepPartial<DeskthingConfig>
@@ -80,15 +80,50 @@ const manuallyParseConfig = async (
     const fileContent = await readFile(path, "utf-8");
 
     // Extract the configuration object from the file content
-    const configMatch = fileContent.match(/defineConfig\(([\s\S]*?)\);?\s*$/);
+    const configMatch = fileContent.match(
+      /defineConfig\s*\(\s*([\s\S]*?)\s*\)\s*[;]?\s*(?:export default|module\.exports\s*=)?\s*(?:defineConfig\s*\(\s*([\s\S]*?)\s*\)\s*[;]?)?/
+    );
     if (!configMatch) {
-      throw new Error("Could not find config definition in file");
+      if (debug)
+        console.log("Could not find config definition in file using regex");
+
+      // Fallback: Try to extract any object between curly braces
+      const objectMatch = fileContent.match(/\{[\s\S]*development[\s\S]*\}/);
+      if (objectMatch) {
+        try {
+          // Convert to valid JSON by replacing single quotes with double quotes
+          // and removing trailing commas
+          let jsonStr = objectMatch[0]
+            .replace(/'/g, '"')
+            .replace(/,(\s*[}\]])/g, "$1")
+            .replace(/\/\/.*$/gm, ""); // Remove comments
+
+          // Handle environment variables references
+          jsonStr = jsonStr.replace(
+            /process\.env\.[A-Z_]+/g,
+            '"ENV_PLACEHOLDER"'
+          );
+
+          const config = JSON.parse(jsonStr);
+          if (debug)
+            console.log("Successfully extracted config using fallback method");
+          return config;
+        } catch (e) {
+          if (debug) console.log("Failed to parse extracted object:", e);
+        }
+      }
+
+      throw new Error("Could not find or parse config definition in file");
     }
 
     try {
-      const configStr = configMatch[1].trim();
+      const configStr = configMatch[1]?.trim() || configMatch[2]?.trim();
+
+      if (debug)
+        console.log("Found config string, attempting to evaluate safely");
+
       // Remove any trailing commas that might break JSON parsing
-      const cleanConfigStr = configStr.replace(/,(\s*[}\]])/g, "$1");
+      const cleanConfigStr = configStr?.replace(/,(\s*[}\]])/g, "$1");
       // Parse as JSON after ensuring it's valid JSON format
       const config = JSON.parse(cleanConfigStr);
       return config;
@@ -112,15 +147,20 @@ const directConfigImport = async (
   path: string,
   debug: boolean = false
 ): Promise<DeskthingConfig | null> => {
-  const tsConfigPath = pathToFileURL(path).href;
-  if (debug)
-    console.log(
-      `(debug mode enabled) Loading config from ${tsConfigPath} file...`
-    );
+  try {
+    const tsConfigPath = pathToFileURL(path).href;
+    if (debug)
+      console.log(
+        `(debug mode enabled) Loading config from ${tsConfigPath} file...`
+      );
 
-  const configModule = await import(tsConfigPath);
-  if (debug) console.log(`Config loaded successfully from ${tsConfigPath}`);
-  return configModule.default || configModule;
+    const configModule = await import(tsConfigPath);
+    if (debug) console.log(`Config loaded successfully from ${tsConfigPath}`);
+    return configModule.default || configModule;
+  } catch (error) {
+    if (debug) console.log("Direct import failed:", error);
+    throw error;
+  }
 };
 
 export const getConfigFromFile = async (debug: boolean = false) => {
@@ -128,7 +168,10 @@ export const getConfigFromFile = async (debug: boolean = false) => {
     let rootUrl = resolve(process.cwd(), "deskthing.config.ts");
 
     if (!existsSync(rootUrl)) {
-      if (debug) console.log("deskthing.config.ts not found, trying deskthing.config.js");
+      if (debug)
+        console.log(
+          "deskthing.config.ts not found, trying deskthing.config.js"
+        );
       rootUrl = resolve(process.cwd(), "deskthing.config.js");
       if (!existsSync(rootUrl)) {
         throw new Error("No config file found (tried both TS and JS files)");
@@ -138,7 +181,10 @@ export const getConfigFromFile = async (debug: boolean = false) => {
     // try direct config import
     try {
       const config = await directConfigImport(rootUrl, debug);
-      return config;
+      if (config) {
+        if (debug) console.log("Config loaded successfully from JS file");
+        return config;
+      }
     } catch (importError) {
       // Second attempt: Try to use require with ts-node if direct import fails
       if (debug)
@@ -148,7 +194,10 @@ export const getConfigFromFile = async (debug: boolean = false) => {
     // try loading require
     try {
       const config = await loadTsConfig(rootUrl, debug);
-      return config;
+      if (config) {
+        if (debug) console.log("Config loaded successfully from TS file");
+        return config;
+      }
     } catch (e) {
       if (debug)
         console.error("\x1b[91mError loading TS config:", e, "\x1b[0m");
@@ -171,7 +220,7 @@ export const getConfigFromFile = async (debug: boolean = false) => {
         e,
         "\x1b[0m"
       );
-    return null;
+    return defaultConfig;
   }
 };
 
@@ -226,8 +275,11 @@ export const initConfig = async (
       }
     }
   } catch (e) {
+    console.warn("\x1b[93mWarning: Error loading config, using defaults\x1b[0m");
     if (options.debug)
       console.error("\x1b[91mError loading config:", e, "\x1b[0m");
+    DeskThingConfig = defaultConfig;
+
   }
 };
 

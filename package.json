@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.10.21",
+  "version": "0.10.23",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",
@@ -30,7 +30,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "deskthing": "./dist/cli.js"
+    "deskthing": "dist/cli.js"
   },
   "scripts": {
     "build": "npm run build:emulator-client && npm run build:emulator && npm run build:cli && npm run build:emulator-thread && npm run build:index",
@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@deskthing/types": "^0.10.15",
-    "@types/node": "^22.10.10",
+    "@types/node": "^22.13.17",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/ws": "^8.5.14",

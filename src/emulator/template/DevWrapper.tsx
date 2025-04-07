@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 
-import { sampleApps, sampleSongs } from "./sampleData"
+import { sampleApps, sampleClientManifest, sampleSongs } from "./sampleData"
 import { ClientService } from "./clientService"
 import { ClientMessageBus } from "./clientMessageBus"
 import { ClientLogger } from "./clientLogger"
 import { clientConfig } from "./clientConfig"
-import { Client, FromDeviceData, DEVICE_CLIENT, DESKTHING_EVENTS, SongData, ClientToDeviceData } from '@deskthing/types'
+import { Client, FromDeviceData, DEVICE_CLIENT, DESKTHING_EVENTS, SongData, ClientToDeviceData, AppManifest, DeviceToClientCore } from '@deskthing/types'
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [manifest, setManifest] = useState<any>()
+  const [appManifest, setManifest] = useState<AppManifest>()
   const [isViteServerConnected, setIsViteServerConnected] = useState(false)
   const [connectionAttempts, setConnectionAttempts] = useState(0)
   const [songData, setSongData] = useState<SongData>(sampleSongs)
@@ -18,7 +18,7 @@ export const DevWrapper: React.FC = () => {
     return clientConfig.viteLocation + ":" + clientConfig.vitePort
   }, [clientConfig])
 
-  const send = (data: FromDeviceData) => {
+  const send = (data: DeviceToClientCore) => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
       const augmentedData = { ...data, source: "deskthing" }
       iframeRef.current.contentWindow.postMessage(augmentedData, "*")
@@ -67,7 +67,7 @@ export const DevWrapper: React.FC = () => {
       ClientService.sendToApp({
         type: 'get',
         request: 'song',
-        app: data.app || manifest?.id || "unknownId",
+        app: data.app || appManifest?.id || "unknownId",
       })
       send({ type: DEVICE_CLIENT.MUSIC, app: "client", payload: songData })
     }
@@ -113,7 +113,7 @@ export const DevWrapper: React.FC = () => {
         send({
           type: DEVICE_CLIENT.MANIFEST,
           app: "client",
-          payload: manifest,
+          payload: sampleClientManifest,
         })
       })
     }
@@ -122,10 +122,10 @@ export const DevWrapper: React.FC = () => {
   const handleAction = (data: Extract<ClientToDeviceData, { type: 'action' | 'key'}>) => {
     ClientLogger.debug('Handling action', data)
     if (data.type == 'action') {
-      if (manifest) {
+      if (appManifest) {
         ClientService.sendToApp({
           ...data,
-          app: data.app || manifest?.id || "unknownId",
+          app: data.app || appManifest?.id || "unknownId",
         } as any)
       } else {
         ClientService.requestManifest((manifest) => {
@@ -139,7 +139,7 @@ export const DevWrapper: React.FC = () => {
     } else {
       ClientService.sendToApp({
         ...data,
-        app: data.app || manifest?.id || "unknownId",
+        app: data.app || appManifest?.id || "unknownId",
       } as any)
     }
   }
@@ -180,10 +180,10 @@ export const DevWrapper: React.FC = () => {
         }
       } else {
         ClientLogger.debug('Sending data to server', appDataRequest)
-        if (manifest) {
+        if (appManifest) {
           ClientService.sendToApp({
             ...appDataRequest,
-            app: appDataRequest.app || manifest?.id || "unknownId",
+            app: appDataRequest.app || appManifest?.id || "unknownId",
           })
         } else {
           ClientService.requestManifest((manifest) => {
@@ -213,7 +213,7 @@ export const DevWrapper: React.FC = () => {
       unsubscribe()
       window.removeEventListener("message", handleIframeEvent)
     }
-  }, [manifest])
+  }, [appManifest])
 
   // Update when iframe loads successfully
   const handleIframeLoad = () => {
@@ -225,7 +225,7 @@ export const DevWrapper: React.FC = () => {
         connectionId: '1234567890',
         connected: true,
         timestamp: Date.now(),
-        currentApp: manifest.id
+        currentApp: appManifest.id
       } as Client
     } as any)
     ClientService.sendToApp({
@@ -236,7 +236,7 @@ export const DevWrapper: React.FC = () => {
         connectionId: '1234567890',
         connected: true,
         timestamp: Date.now(),
-        currentApp: manifest.id
+        currentApp: appManifest.id
       } as Client
     } as any)
     setIsViteServerConnected(true)
