@@ -118,7 +118,7 @@ export class ClientService {
   }
 
   static sendToApp(data: any) {
-    ClientMessageBus.publish("app:data", data);
+    ClientMessageBus.publish("app:data", { ...data, clientId: '1234567890' });
   }
 
   private static shouldLog(

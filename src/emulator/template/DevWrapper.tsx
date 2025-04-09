@@ -5,7 +5,7 @@ import { ClientService } from "./clientService"
 import { ClientMessageBus } from "./clientMessageBus"
 import { ClientLogger } from "./clientLogger"
 import { clientConfig } from "./clientConfig"
-import { Client, FromDeviceData, DEVICE_CLIENT, DESKTHING_EVENTS, SongData, ClientToDeviceData, AppManifest, DeviceToClientCore } from '@deskthing/types'
+import { Client, FromDeviceData, DEVICE_CLIENT, DESKTHING_EVENTS, SongData, ClientToDeviceData, AppManifest, DeviceToClientCore, DeskThingToAppData, DeskThingToAppCore } from '@deskthing/types'
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -126,21 +126,24 @@ export const DevWrapper: React.FC = () => {
         ClientService.sendToApp({
           ...data,
           app: data.app || appManifest?.id || "unknownId",
-        } as any)
+          clientId: '1234567890'
+        })
       } else {
         ClientService.requestManifest((manifest) => {
           setManifest(manifest)
           ClientService.sendToApp({
             ...data,
             app: data.app || manifest?.id || "unknownId",
-          } as any)
+            clientId: '1234567890'
+          })
         })
       }
     } else {
       ClientService.sendToApp({
         ...data,
         app: data.app || appManifest?.id || "unknownId",
-      } as any)
+        clientId: '1234567890'
+      })
     }
   }
 
@@ -227,7 +230,7 @@ export const DevWrapper: React.FC = () => {
         timestamp: Date.now(),
         currentApp: appManifest.id
       } as Client
-    } as any)
+    } as DeskThingToAppCore)
     ClientService.sendToApp({
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'opened',
@@ -238,7 +241,7 @@ export const DevWrapper: React.FC = () => {
         timestamp: Date.now(),
         currentApp: appManifest.id
       } as Client
-    } as any)
+    } as DeskThingToAppCore)
     setIsViteServerConnected(true)
   }
 
@@ -246,14 +249,8 @@ export const DevWrapper: React.FC = () => {
     ClientService.sendToApp({
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'disconnected',
-      payload: {
-        id: 'deskthing-client',
-        connectionId: '1234567890',
-        connected: false,
-        timestamp: Date.now(),
-        currentApp: undefined
-      } as Client
-    } as any)
+      payload: '1234567890'
+    } as DeskThingToAppCore)
     ClientService.sendToApp({
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'closed',
@@ -264,7 +261,7 @@ export const DevWrapper: React.FC = () => {
         timestamp: Date.now(),
         currentApp: undefined
       } as Client
-    } as any)
+    } as DeskThingToAppCore)
     setIsViteServerConnected(false)
     setConnectionAttempts((prev) => prev + 1)
   }

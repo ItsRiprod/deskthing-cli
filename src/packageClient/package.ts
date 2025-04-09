@@ -1,6 +1,6 @@
 import { join, resolve } from "path";
 import zl from "zip-lib";
-import { readdir, stat, cp, rm } from "fs/promises";
+import { readdir, stat, cp, rm, mkdir } from "fs/promises";
 import { loadConfigs } from "./config";
 import { build as buildVite } from "vite";
 
@@ -36,8 +36,16 @@ export async function createPackage() {
   const { packageJson, manifestJson } = loadConfigs();
 
   const packageName = packageJson.name;
-  const version = (manifestJson.version || packageJson.version).replaceAll('v', '')
+  const version = (manifestJson.version || packageJson.version).replaceAll(
+    "v",
+    ""
+  );
   const distPath = resolve("dist");
+
+  const distExists = await stat(distPath).catch(() => false);
+  if (!distExists) {
+    await mkdir(distPath, { recursive: true });
+  }
 
   const outputFile = join(distPath, `${packageName}-v${version}.zip`);
 

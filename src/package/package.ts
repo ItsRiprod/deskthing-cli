@@ -1,10 +1,11 @@
 import { join, resolve } from "path";
 import zl from "zip-lib";
-import { readdir, stat, cp, rm } from "fs/promises";
+import { readdir, stat, cp, rm, mkdir } from "fs/promises";
 import { loadConfigs } from "./config";
 import { build as buildEsbuild } from "esbuild";
 import { build as buildVite } from "vite";
 import viteLegacyPlugin from "@vitejs/plugin-legacy"
+import { exec } from "child_process"
 
 async function buildServer() {
   await buildEsbuild({
@@ -152,17 +153,43 @@ export async function createPackage() {
 
 async function clean() {
   const distPath = resolve("dist");
-  const files = await readdir(distPath);
-  for (const file of files) {
-    const filePath = join(distPath, file);
-    await rm(filePath, { recursive: true, force: true });
+  try {
+    await mkdir(distPath, { recursive: true });
+    const files = await readdir(distPath);
+    for (const file of files) {
+      const filePath = join(distPath, file);
+      await rm(filePath, { recursive: true, force: true });
+    }
+  } catch (error) {
+    await mkdir(distPath, { recursive: true });
   }
 }
 
+async function ensureNpmBuilt() {
+  const nodeModulesPath = resolve("node_modules");
+  const nodeModulesExists = await stat(nodeModulesPath).catch(() => false);
+  if (!nodeModulesExists) {
+    console.log("\x1b[33m%s\x1b[0m", "📦 Running npm install...");
+    await new Promise((resolve, reject) => {
+      exec('npm install', (error, stdout, stderr) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(stdout);
+      });
+    });
+  } else {
+    console.log("\x1b[32m%s\x1b[0m", "✅ NPM is already built!");
+  }
+}
 export async function buildAll() {
   // Clear all of the files in the dist folder that relate to the build
   console.log("\x1b[33m%s\x1b[0m", "🧹 Clearing dist folder...");
   await clean();
+
+  console.log("\x1b[33m%s\x1b[0m", "📦 Ensuring NPM has been built...");
+  await ensureNpmBuilt();
 
   console.log("\x1b[33m%s\x1b[0m", "🏗️ Building Client...");
   await buildClient();
