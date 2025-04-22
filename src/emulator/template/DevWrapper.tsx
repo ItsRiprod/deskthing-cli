@@ -224,8 +224,7 @@ export const DevWrapper: React.FC = () => {
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'connected',
       payload: {
-        id: 'deskthing-client',
-        connectionId: '1234567890',
+        clientId: 'deskthing-client',
         connected: true,
         timestamp: Date.now(),
         currentApp: appManifest.id
@@ -235,8 +234,7 @@ export const DevWrapper: React.FC = () => {
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'opened',
       payload: {
-        id: 'deskthing-client',
-        connectionId: '1234567890',
+        clientId: 'deskthing-client',
         connected: true,
         timestamp: Date.now(),
         currentApp: appManifest.id
@@ -255,9 +253,8 @@ export const DevWrapper: React.FC = () => {
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: 'closed',
       payload: {
-        id: 'deskthing-client',
-        connectionId: '1234567890',
-        connected: true,
+        clientId: 'deskthing-client',
+        connected: false,
         timestamp: Date.now(),
         currentApp: undefined
       } as Client

@@ -12,6 +12,8 @@ import {
   AUDIO_REQUESTS,
   MusicEventPayloads,
   DeskThingToAppCore,
+  ConnectionState,
+  ClientConnectionMethod,
 } from "@deskthing/types";
 import { DeskThingConfig } from "../../config/deskthing.config";
 import { exec } from "child_process";
@@ -431,9 +433,18 @@ const handleConnectionsRequest: HandlerFunction<APP_REQUESTS.GET, 'connections'>
 ) => {
   Logger.info(`[handleAppData]: App is requesting connections`);
   const sampleClient: Client = {
-    id: "sample-id",
-    connectionId: "1234567890",
+    clientId: "sample-id",
     connected: false,
+    identifiers: {
+      'sample-provider': {
+        id: "sample-id",
+        capabilities: [],
+        method: ClientConnectionMethod.Unknown,
+        providerId: 'sample-provider',
+        active: false,
+      }
+    },
+    connectionState: ConnectionState.Disconnected,
     timestamp: Date.now(),
     currentApp: app,
   };
