@@ -70,6 +70,33 @@ async function buildWorkers() {
     console.error("\x1b[31mError building workers:\x1b[0m", error);
   }}
 
+async function buildPostinstall() {
+  try {
+    await stat("postinstall")
+  } catch (e) {
+    console.warn("\x1b[35mUnable to find postinstall file\x1b[0m");
+    console.warn("\x1b[90m(Can be ignored if you do not have a postinstall script)\x1b[0m");
+    return
+  }
+  
+  try {
+
+
+    await buildEsbuild({
+      entryPoints: ["postinstall/*.ts"],
+      bundle: true,
+      platform: "node",
+      outdir: "dist/postinstall",
+      target: "ESNext",
+      format: "esm",
+      resolveExtensions: [".ts", ".js"],
+      sourcemap: true,
+      minify: true,
+    });
+  } catch (error) {
+    console.error("\x1b[31mError building postinstall:\x1b[0m", error);
+  }}
+
 async function buildClient() {
   await buildVite({
     configFile: "vite.config.ts",
@@ -199,6 +226,9 @@ export async function buildAll() {
 
   console.log("\x1b[33m%s\x1b[0m", "🏗️ Building Workers...");
   await buildWorkers();
+
+  console.log("\x1b[33m%s\x1b[0m", "🏗️ Building Postinstall Script...");
+  await buildPostinstall();
 
   console.log("\x1b[33m%s\x1b[0m", "🏗️ Copying Manifest...");
   await copyDeskThing();
