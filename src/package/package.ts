@@ -85,7 +85,6 @@ const buildPostinstall = async () => {
       entryPoints: ["postinstall/*.ts"],
       bundle: true,
       platform: "node",
-      outdir: "dist/server",
       target: "ESNext",
       format: "esm",
       resolveExtensions: [".ts", ".js"],
