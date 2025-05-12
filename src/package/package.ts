@@ -40,7 +40,7 @@ async function buildWorkers() {
     console.warn("\x1b[90m(Can be ignored if you do not have workers)\x1b[0m");
     return
   }
-  
+
   try {
 
 
@@ -68,9 +68,10 @@ async function buildWorkers() {
     });
   } catch (error) {
     console.error("\x1b[31mError building workers:\x1b[0m", error);
-  }}
+  }
+}
 
-async function buildPostinstall() {
+const buildPostinstall = async () => {
   try {
     await stat("postinstall")
   } catch (e) {
@@ -78,24 +79,24 @@ async function buildPostinstall() {
     console.warn("\x1b[90m(Can be ignored if you do not have a postinstall script)\x1b[0m");
     return
   }
-  
+
   try {
-
-
     await buildEsbuild({
       entryPoints: ["postinstall/*.ts"],
       bundle: true,
       platform: "node",
-      outdir: "dist/postinstall",
+      outdir: "dist/server",
       target: "ESNext",
       format: "esm",
       resolveExtensions: [".ts", ".js"],
       sourcemap: true,
+      outfile: "dist/server/postinstall.js",
       minify: true,
     });
   } catch (error) {
     console.error("\x1b[31mError building postinstall:\x1b[0m", error);
-  }}
+  }
+}
 
 async function buildClient() {
   await buildVite({
