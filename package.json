@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.10.29",
+  "version": "0.10.30",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",

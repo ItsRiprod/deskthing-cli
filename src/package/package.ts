@@ -15,20 +15,20 @@ async function buildServer() {
     outfile: "dist/server/index.js",
     target: "ESNext",
     format: "esm",
+    external: ['node:*', 'fs', 'path', 'child_process'],
     resolveExtensions: [".ts", ".js"],
     sourcemap: true,
     banner: {
       js: `
         // ESM shims for Node.js built-in modules
-        import { createRequire } from 'module';
-        import { fileURLToPath } from 'url';
-        import path from 'path';
-        
-        const require = createRequire(import.meta.url);
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
-      `
-    }
+        import { createRequire as DeskThingCreateRequire } from 'module';
+        import { fileURLToPath as DeskThingFileURLToPath } from 'url';
+        import { dirname as DeskThingDirname } from 'node:path';
+
+          const require = DeskThingCreateRequire(import.meta.url);
+          const __filename = DeskThingFileURLToPath(import.meta.url);
+          const __dirname = DeskThingDirname(__filename);
+      `      }
   });
 }
 
@@ -56,15 +56,14 @@ async function buildWorkers() {
       banner: {
         js: `
           // ESM shims for Node.js built-in modules
-          import { createRequire } from 'module';
-          import { fileURLToPath } from 'url';
-          import path from 'path';
-          
-          const require = createRequire(import.meta.url);
-          const __filename = fileURLToPath(import.meta.url);
-          const __dirname = path.dirname(__filename);
-        `
-      }
+          import { createRequire as DeskThingCreateRequire } from 'module';
+          import { fileURLToPath as DeskThingFileURLToPath } from 'url';
+          import path from 'node:path';
+
+            const require = DeskThingCreateRequire(import.meta.url);
+            const __filename = DeskThingFileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
+        `      }
     });
   } catch (error) {
     console.error("\x1b[31mError building workers:\x1b[0m", error);
@@ -82,14 +81,14 @@ const buildPostinstall = async () => {
 
   try {
     await buildEsbuild({
-      entryPoints: ["postinstall/*.ts"],
+      entryPoints: ["postinstall/index.ts"],
       bundle: true,
       platform: "node",
       target: "ESNext",
       format: "esm",
       resolveExtensions: [".ts", ".js"],
-      sourcemap: true,
-      outfile: "dist/server/postinstall.js",
+      sourcemap: false,
+      outfile: "dist/postinstall.js",
       minify: true,
     });
   } catch (error) {
@@ -106,7 +105,6 @@ async function buildClient() {
     })],
     build: {
       outDir: "dist/client",
-      target: "es2020",
       rollupOptions: {
         output: {
           assetFileNames: "[name]-[hash][extname]",
