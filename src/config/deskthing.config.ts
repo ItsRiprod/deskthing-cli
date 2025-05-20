@@ -80,9 +80,7 @@ const manuallyParseConfig = async (
     const fileContent = await readFile(path, "utf-8");
 
     // Extract the configuration object from the file content
-    const configMatch = fileContent.match(
-      /defineConfig\s*\(\s*([\s\S]*?)\s*\)\s*[;]?\s*(?:export default|module\.exports\s*=)?\s*(?:defineConfig\s*\(\s*([\s\S]*?)\s*\)\s*[;]?)?/
-    );
+    const configMatch = fileContent.match(/defineConfig\s*\(\s*({[\s\S]*?})\s*\)/);
     if (!configMatch) {
       if (debug)
         console.log("Could not find config definition in file using regex");
@@ -94,6 +92,7 @@ const manuallyParseConfig = async (
           // Convert to valid JSON by replacing single quotes with double quotes
           // and removing trailing commas
           let jsonStr = objectMatch[0]
+            .replace(/process\.env\.[A-Z_]+/g, '"ENV_VARIABLE"')
             .replace(/'/g, '"')
             .replace(/,(\s*[}\]])/g, "$1")
             .replace(/\/\/.*$/gm, ""); // Remove comments
@@ -122,8 +121,13 @@ const manuallyParseConfig = async (
       if (debug)
         console.log("Found config string, attempting to evaluate safely");
 
+      if (debug)
+        console.log(configStr)
+
       // Remove any trailing commas that might break JSON parsing
-      const cleanConfigStr = configStr?.replace(/,(\s*[}\]])/g, "$1");
+      const cleanConfigStr = configStr?.replace(/process\.env\.[A-Z_]+/g, '"ENV_VARIABLE"')
+        .replace(/,(\s*[}\]])/g, "$1")
+        .replace(/\/\/.*$/gm, "");
       // Parse as JSON after ensuring it's valid JSON format
       const config = JSON.parse(cleanConfigStr);
       return config;
@@ -143,7 +147,72 @@ const manuallyParseConfig = async (
   }
 };
 
+async function parseTypeScriptConfig(filePath: string, debug: boolean = false): Promise<DeepPartial<DeskthingConfig> | null> {
+  try {
+    const content = await readFile(filePath, 'utf-8');
+
+    // Extract the configuration object
+    const configMatch = content.match(/defineConfig\s*\(\s*({[\s\S]*?})\s*\)/);
+    if (!configMatch || !configMatch[1]) {
+      return null;
+    }
+
+    // Replace TypeScript-specific syntax with JSON-compatible syntax
+    let configStr = configMatch[1]
+      // Handle environment variables
+      .replace(/process\.env\.[A-Z_]+/g, '"ENV_VARIABLE"')
+      // Remove trailing commas
+      .replace(/,(\s*[}\]])/g, '$1')
+      // Remove comments
+      .replace(/\/\/.*$/gm, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Try to evaluate as JavaScript (safer than eval)
+    try {
+      // Create a function that returns the parsed object
+      const fn = new Function(`return ${configStr}`);
+      return fn();
+    } catch (evalError) {
+       if (debug)
+        console.log('Failed to evaluate config as JavaScript:', evalError);
+
+      // Fallback: Try to parse as JSON with some preprocessing
+      try {
+        // Convert single quotes to double quotes for JSON
+        configStr = configStr.replace(/'/g, '"');
+        return JSON.parse(configStr);
+      } catch (jsonError) {
+       if (debug)
+        console.log('Failed to parse as JSON:', jsonError);
+        return null;
+      }
+    }
+  } catch (error) {
+      if (debug)
+        console.log('Error reading or parsing config file:', error);
+    return null;
+  }
+}
+
 const directConfigImport = async (
+  path: string,
+  debug: boolean = false
+): Promise<DeskthingConfig | null> => {
+  try {
+    if (debug)
+      console.log(
+        `(debug mode enabled) Loading config from ${path} file...`
+      );
+    const configModule = await import(`${path}`);
+    if (debug) console.log(`Config loaded successfully from ${path}`);
+    return configModule.default || configModule;
+  } catch (error) {
+    if (debug) console.log("Direct import failed:", error);
+    throw error;
+  }
+};
+
+const directConfigImportUrl = async (
   path: string,
   debug: boolean = false
 ): Promise<DeskthingConfig | null> => {
@@ -153,7 +222,6 @@ const directConfigImport = async (
       console.log(
         `(debug mode enabled) Loading config from ${tsConfigPath} file...`
       );
-
     const configModule = await import(tsConfigPath);
     if (debug) console.log(`Config loaded successfully from ${tsConfigPath}`);
     return configModule.default || configModule;
@@ -182,7 +250,20 @@ export const getConfigFromFile = async (debug: boolean = false) => {
     try {
       const config = await directConfigImport(rootUrl, debug);
       if (config) {
-        if (debug) console.log("Config loaded successfully from JS file");
+        if (debug) console.log("Config loaded successfully from TS file");
+        return config;
+      }
+    } catch (importError) {
+      // Second attempt: Try to use require with ts-node if direct import fails
+      if (debug)
+        console.log(`Direct import failed, trying alternative method...`);
+    }
+
+    // try direct config import
+    try {
+      const config = await directConfigImportUrl(rootUrl, debug);
+      if (config) {
+        if (debug) console.log("Config loaded successfully from TS file");
         return config;
       }
     } catch (importError) {
@@ -212,6 +293,14 @@ export const getConfigFromFile = async (debug: boolean = false) => {
     } catch (e) {
       if (debug)
         console.error("\x1b[91mError parsing config manually:", e, "\x1b[0m");
+    }
+
+    if (debug) console.log("Trying to parse config and run as js...");
+    try {
+      const config = await parseTypeScriptConfig(rootUrl, debug);
+      return config;
+    } catch (error) {
+      if (debug) console.log("Error running as js:", error);
     }
   } catch (e) {
     if (debug)

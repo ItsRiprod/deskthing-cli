@@ -123,6 +123,8 @@ console.log(`
     console.log(`\n\n------- \x1b[1mCreating typed configuration file\x1b[0m --------\n\n`)
     
     const configTemplate = `
+
+// @ts-check
 // version ${thisPackage?.version || '0.10.7'}
 import { defineConfig } from '@deskthing/cli';
 
@@ -150,7 +152,7 @@ export default defineConfig({
 });
   `;
   
-    const configPath = join(process.cwd(), "deskthing.config.ts");
+    const configPath = join(process.cwd(), "deskthing.config.js");
     try {
       await writeFile(configPath, configTemplate);
       console.log(`\n\n\x1b[32m✅ File created at\n${configPath}\x1b[0m\n\n`);

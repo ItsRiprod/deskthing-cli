@@ -1,6 +1,15 @@
 import { pathToFileURL } from "node:url";
 import { workerData, parentPort } from "node:worker_threads"
 
+// shims that are imported during the build process on deskthing - if these throw an error, fix your code instead of changing this
+import { createRequire as DeskThingCreateRequire } from 'module';
+import { fileURLToPath as DeskThingFileURLToPath } from 'url';
+import { dirname as DeskThingDirname } from 'node:path';
+
+const require = DeskThingCreateRequire(import.meta.url);
+const __filename = DeskThingFileURLToPath(import.meta.url);
+const __dirname = DeskThingDirname(__filename);
+
 // Set environment variables from workerData
 Object.entries(workerData).forEach(([key, value]) => {
   process.env[key] = value as string

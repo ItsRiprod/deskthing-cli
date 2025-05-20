@@ -88,7 +88,7 @@ const buildPostinstall = async () => {
       format: "esm",
       resolveExtensions: [".ts", ".js"],
       sourcemap: false,
-      outfile: "dist/postinstall.js",
+      outfile: "dist/postinstall.mjs", // ensure that it is a module
       minify: true,
     });
   } catch (error) {
