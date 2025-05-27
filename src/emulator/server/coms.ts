@@ -115,7 +115,7 @@ const handleRequestSetSettings: HandlerFunction<
         {
           ...setting,
           value:
-            DeskThingConfig.development?.server?.mockData?.settings[key] ||
+            DeskThingConfig.development?.server?.mockData?.settings[key] ??
             setting.value,
         },
       ];
@@ -481,7 +481,7 @@ const handleSendToClient: RequestHandler<APP_REQUESTS.SEND> = {
     serverService.sendToClient({
       app: appData.payload.app || app,
       type: appData.payload.type || "",
-      payload: appData.payload.payload || "",
+      payload: appData.payload.payload ?? "",
       request: appData.payload.request || "",
     });
   },

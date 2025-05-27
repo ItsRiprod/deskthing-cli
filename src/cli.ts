@@ -26,7 +26,7 @@ console.log(`
   \\__,_|\\___||___/_|\\_\\\\__|_| |_|_|_| |_|\\__, |
                                           __/ |
                                          |___/  
-                Version ${thisPackage?.version || '0.10.7'}`)
+                Version ${thisPackage?.version || '0.11.0'}`)
   yargs(hideBin(process.argv))
   .scriptName('deskthing')
   .command('dev', 'Start development server', (yargs) => {
@@ -125,7 +125,7 @@ console.log(`
     const configTemplate = `
 
 // @ts-check
-// version ${thisPackage?.version || '0.10.7'}
+// version ${thisPackage?.version || '0.11.0'}
 import { defineConfig } from '@deskthing/cli';
 
 export default defineConfig({
