@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",
@@ -51,7 +51,7 @@
     "zip-lib": "^1.0.5"
   },
   "devDependencies": {
-    "@deskthing/types": "^0.11.2",
+    "@deskthing/types": "^0.11.3",
     "@types/node": "^22.13.17",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
