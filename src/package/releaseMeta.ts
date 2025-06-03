@@ -2,7 +2,9 @@ import { createHash } from 'crypto';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { loadConfigs } from './config';
-import { PlatformTypes, AppReleaseMeta } from '@deskthing/types';
+import { AppLatestJSONLatest } from '@deskthing/types';
+import { writeFile } from 'fs/promises';
+import { getReleaseFilePath } from '../utils/filePaths';
 
 const getLatestReleasesFromGithubURLs = (releaseAssetId: string, potentialUrls: string[]): string => {
     for (const url of potentialUrls) {
@@ -66,26 +68,18 @@ export const generateRelease = async () => {
     }
 
     console.log('\x1b[33m%s\x1b[0m', 'Generating release metadata...');
-    const release: AppReleaseMeta = {
-        id: manifestJson.id || "deskthingapp",
-        label: manifestJson.label || packageJson.name || "",
-        type: 'single',
-        version: `${version}`,
-        description: manifestJson.description || packageJson.description || "",
-        author: manifestJson.author || packageJson.author || "",
-        platforms: (manifestJson.platforms || ["windows", "mac", "linux"]) as PlatformTypes[],
-        homepage: manifestJson.homepage || packageJson.homepage || "",
-        repository: manifestJson.repository || packageJson.repository?.url || "",
-        updateUrl: updateUrl,
-        tags: manifestJson.tags || ["webappOnly" as any],
-        requiredVersions: manifestJson.requiredVersions || {
-            server: `>=${manifestJson.compatible_server ? ('0.' + manifestJson.compatible_server) : packageJson.version}`,
-            client: `>=${manifestJson.compatible_client ? ('0.' + manifestJson.compatible_client) : packageJson.version}`
-        },
+    const release: AppLatestJSONLatest = {
+        meta_version: '0.11.8', // latest version of the release
+        repository: manifestJson.repository || packageJson.repository?.url,
         icon: icon,
         size: fileSize,
+        appManifest: manifestJson,
+        updateUrl: updateUrl,
         hash: fileHash,
         hashAlgorithm: "sha512",
+        updatedAt: Date.now(),
+        createdAt: Date.now(),
+        downloads: 0,
     }
 
     return release;
@@ -93,13 +87,15 @@ export const generateRelease = async () => {
 
 export async function createReleaseFile() {
     console.log('\x1b[33m%s\x1b[0m', 'Creating release file...');
-    const distPath = join(process.cwd(), 'dist');
-    const releaseFilePath = join(distPath, `latest.json`);
-
+    
     
     try {
         const release = await generateRelease();
-        writeFileSync(releaseFilePath, JSON.stringify(release, null, 2));
+
+        const releaseFilePath = await getReleaseFilePath(release.appManifest.id);
+        
+        await writeFile(releaseFilePath, JSON.stringify(release, null, 2));
+        
         console.log('\x1b[32m%s\x1b[0m', 'Release file created successfully');
     } catch (err) {
         console.error('\x1b[31m%s\x1b[0m', 'Failed to create release file:', err);

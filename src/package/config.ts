@@ -1,19 +1,19 @@
 import { join } from 'path';
 import { readFileSync } from 'fs';
 import { AppManifest } from '@deskthing/types';
-  export const loadConfigs = () => {
+export const loadConfigs = () => {
     const packageJsonPath = join(process.cwd(), 'package.json');
     const manifestJsonPath = join(process.cwd(), 'deskthing/manifest.json');
-    
+
     let packageJson;
     let manifestJson: AppManifest
-    
+
     try {
         packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
     } catch (error) {
         throw new Error(`\x1b[31mFailed to load package.json: ${error.message}\x1b[0m`);
     }
-    
+
     try {
         manifestJson = JSON.parse(readFileSync(manifestJsonPath, 'utf8'));
     } catch (error) {
@@ -27,7 +27,7 @@ import { AppManifest } from '@deskthing/types';
         }
     }
     return {
-      packageJson,
-      manifestJson
+        packageJson,
+        manifestJson
     };
-  };
+};

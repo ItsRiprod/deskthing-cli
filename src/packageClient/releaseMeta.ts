@@ -3,7 +3,8 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { loadConfigs } from "./config";
 import { sanitizeClient } from "./sanitizeData";
-import { ClientReleaseMeta } from "@deskthing/types";
+import { ClientLatestJSONLatest, ClientReleaseMeta } from "@deskthing/types";
+import { getReleaseFilePath } from "../utils/filePaths";
 
 const getLatestReleasesFromGithubURLs = (
   releaseAssetId: string,
@@ -26,6 +27,7 @@ const getLatestReleasesFromGithubURLs = (
   }
   return "";
 };
+
 export const generateRelease = async () => {
   console.log("\x1b[33m%s\x1b[0m", "Reading package.json and manifest.json...");
   const { packageJson, manifestJson } = loadConfigs();
@@ -81,37 +83,31 @@ export const generateRelease = async () => {
   }
 
   console.log("\x1b[33m%s\x1b[0m", "Generating release metadata...");
-  const release: ClientReleaseMeta = {
-    id: manifestJson.id || "deskthingclient",
-    version: `${version}`,
-    label: manifestJson.name || packageJson.name || "",
-    description: manifestJson.description || packageJson.description || "",
-    author: manifestJson.author || packageJson.author || "",
-    updateUrl: updateUrl,
-    repository: manifestJson.repository || packageJson.repository || "",
-    requiredServer: `>=${
-      manifestJson.compatible_server
-        ? "0." + manifestJson.compatible_server
-        : packageJson.version
-    }`,
+  const release: ClientLatestJSONLatest = {
+    meta_version: '0.11.8',
+    repository: manifestJson.repository || packageJson.repository?.url,
     icon: icon,
-    size: fileSize,
+    clientManifest: manifestJson,
+    updateUrl: updateUrl,
     hash: fileHash,
     hashAlgorithm: "sha512",
-    short_name: manifestJson.short_name,
+    size: fileSize,
+    updatedAt: Date.now(),
+    createdAt: Date.now(),
+    downloads: 0
   };
-
   return release;
 };
 
 export async function createReleaseFile() {
   console.log("\x1b[33m%s\x1b[0m", "Creating release file...");
-  const distPath = join(process.cwd(), "dist");
-  const releaseFilePath = join(distPath, `latest.json`);
 
   try {
     await sanitizeClient();
     const release = await generateRelease();
+
+    const releaseFilePath = await getReleaseFilePath(release.clientManifest.id);
+
     writeFileSync(releaseFilePath, JSON.stringify(release, null, 2));
     console.log("\x1b[32m%s\x1b[0m", "Release file created successfully");
   } catch (err) {
