@@ -20,15 +20,15 @@ async function buildServer() {
     sourcemap: true,
     banner: {
       js: `
-        // ESM shims for Node.js built-in modules
-        import { createRequire as DeskThingCreateRequire } from 'module';
-        import { fileURLToPath as DeskThingFileURLToPath } from 'url';
-        import { dirname as DeskThingDirname } from 'node:path';
+// ESM shims for Node.js built-in modules
+import { createRequire as DeskThingCreateRequire } from 'module';
+import { fileURLToPath as DeskThingFileURLToPath } from 'url';
+import { dirname as DeskThingDirname } from 'node:path';
 
-          const require = DeskThingCreateRequire(import.meta.url);
-          const __filename = DeskThingFileURLToPath(import.meta.url);
-          const __dirname = DeskThingDirname(__filename);
-      `      }
+const require = DeskThingCreateRequire(import.meta.url);
+const __filename = DeskThingFileURLToPath(import.meta.url);
+const __dirname = DeskThingDirname(__filename);
+`}
   });
 }
 
@@ -208,6 +208,7 @@ async function ensureNpmBuilt() {
     console.log("\x1b[32m%s\x1b[0m", "✅ NPM is already built!");
   }
 }
+
 export async function buildAll() {
   // Clear all of the files in the dist folder that relate to the build
   console.log("\x1b[33m%s\x1b[0m", "🧹 Clearing dist folder...");
