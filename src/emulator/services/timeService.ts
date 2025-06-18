@@ -27,7 +27,7 @@ export class TimeService {
         Logger.debug("Sending Time Update");
 
             ServerMessageBus.publish("client:request", TimeDataPayload);
-        }, 15000); // send every 15s - the server technically updated every 60s
+        }, 30000); // send every 15s - the server technically updated every 60s
     }
 
     stop() {

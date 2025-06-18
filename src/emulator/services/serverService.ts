@@ -46,7 +46,8 @@ export class ServerService {
       type: data.type,
       payload: data.payload,
       request: data.request,
-      app: data.app
+      app: data.app,
+      clientId: data.clientId
     })
   }
 

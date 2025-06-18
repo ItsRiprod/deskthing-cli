@@ -5,6 +5,7 @@ import { loadConfigs } from './config';
 import { AppLatestJSONLatest } from '@deskthing/types';
 import { writeFile } from 'fs/promises';
 import { getReleaseFilePath } from '../utils/filePaths';
+import { validateRepoUrl } from '../utils/validateRepoUrl';
 
 const getLatestReleasesFromGithubURLs = (releaseAssetId: string, potentialUrls: string[]): string => {
     for (const url of potentialUrls) {
@@ -28,14 +29,14 @@ const getLatestReleasesFromGithubURLs = (releaseAssetId: string, potentialUrls: 
 export const generateRelease = async () => {
     console.log('\x1b[33m%s\x1b[0m', 'Reading package.json and manifest.json...');
     const { packageJson, manifestJson } = loadConfigs();
-    
+
     // Calculate hash of the zip file
     console.log('\x1b[33m%s\x1b[0m', 'Calculating package hash...');
     const packageName = packageJson.name;
     const version = manifestJson.version || packageJson.version;
     const distPath = join(process.cwd(), 'dist');
     const zipPath = join(distPath, `${packageName}-v${version}.zip`);
-    
+
     const iconPath = join(distPath, 'icons', `${manifestJson.id}.svg`);
     const iconPathAlt = join(distPath, 'images', `${manifestJson.id}.svg`);
 
@@ -47,11 +48,11 @@ export const generateRelease = async () => {
     }
 
     // Always prefer the provided updateUrl, but fallback to GitHub URLs generating a new one if it's not provided
-    const updateUrl = manifestJson.updateUrl || getLatestReleasesFromGithubURLs(
+    const updateUrl = getLatestReleasesFromGithubURLs(
         `${packageName}-v${version}.zip`,
         [
             manifestJson.repository,
-            packageJson.repository,
+            packageJson.repository?.url,
         ]
     );
 
@@ -68,8 +69,18 @@ export const generateRelease = async () => {
     }
 
     console.log('\x1b[33m%s\x1b[0m', 'Generating release metadata...');
+
+    const isValidUrl = await validateRepoUrl(manifestJson.repository);
+
+    if (isValidUrl) {
+        console.log("\x1b[32m%s\x1b[0m", "✅ Url is valid");
+    } else {
+        console.error("\x1b[31m%s\x1b[0m", `⚠️ Url ${manifestJson.repository} is not valid! You may need to provide a valid GitHub repository URL in manifest.json. If you ignore, DeskThing will be unable to download your app`);
+    }
+
     const release: AppLatestJSONLatest = {
         meta_version: '0.11.8', // latest version of the release
+        meta_type: 'app',
         repository: manifestJson.repository || packageJson.repository?.url,
         icon: icon,
         size: fileSize,
@@ -87,15 +98,15 @@ export const generateRelease = async () => {
 
 export async function createReleaseFile() {
     console.log('\x1b[33m%s\x1b[0m', 'Creating release file...');
-    
-    
+
+
     try {
         const release = await generateRelease();
 
         const releaseFilePath = await getReleaseFilePath(release.appManifest.id);
-        
+
         await writeFile(releaseFilePath, JSON.stringify(release, null, 2));
-        
+
         console.log('\x1b[32m%s\x1b[0m', 'Release file created successfully');
     } catch (err) {
         console.error('\x1b[31m%s\x1b[0m', 'Failed to create release file:', err);

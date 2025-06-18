@@ -5,6 +5,7 @@ import { loadConfigs } from "./config";
 import { sanitizeClient } from "./sanitizeData";
 import { ClientLatestJSONLatest, ClientReleaseMeta } from "@deskthing/types";
 import { getReleaseFilePath } from "../utils/filePaths";
+import { validateRepoUrl } from "../utils/validateRepoUrl";
 
 const getLatestReleasesFromGithubURLs = (
   releaseAssetId: string,
@@ -48,8 +49,8 @@ export const generateRelease = async () => {
   const iconFilePath = existsSync(iconPath)
     ? iconPath
     : existsSync(iconPathAlt)
-    ? iconPathAlt
-    : null;
+      ? iconPathAlt
+      : null;
   const icon = iconFilePath
     ? `data:image/svg+xml;base64,${readFileSync(iconFilePath, "base64")}`
     : "";
@@ -83,8 +84,18 @@ export const generateRelease = async () => {
   }
 
   console.log("\x1b[33m%s\x1b[0m", "Generating release metadata...");
+  console.log("\x1b[33m%s\x1b[0m", "Validating Url...");
+  const isValidUrl = await validateRepoUrl(manifestJson.repository);
+
+  if (isValidUrl) {
+    console.log("\x1b[32m%s\x1b[0m", "✅ Url is valid");
+  } else {
+    console.error("\x1b[31m%s\x1b[0m", "⚠️ Url is not valid! You may need to provide a valid GitHub repository URL in manifest.json. If you ignore, DeskThing will be unable to download your app");
+  }
+
   const release: ClientLatestJSONLatest = {
     meta_version: '0.11.8',
+    meta_type: 'client',
     repository: manifestJson.repository || packageJson.repository?.url,
     icon: icon,
     clientManifest: manifestJson,

@@ -1,6 +1,6 @@
 {
   "name": "@deskthing/cli",
-  "version": "0.11.3",
+  "version": "0.11.6",
   "description": "An emulator for the DeskThing Server",
   "keywords": [
     "Emulator",
@@ -38,20 +38,24 @@
     "build:emulator": "esbuild src/emulator/index.ts --bundle --platform=node --outdir=dist/emulator --format=esm --external:ws",
     "build:emulator-thread": "esbuild src/emulator/server/serverProcess.ts --bundle --platform=node --outdir=dist/emulator --format=esm --external:ts-node",
     "build:emulator-client": "vite build",
+    "dev": "vite",
     "build:index": "esbuild src/index.ts --bundle --platform=node --outdir=dist --format=esm --packages=external && tsc src/index.ts --declaration --emitDeclarationOnly --outDir dist --skipLibCheck --isolatedModules --module ESNext",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.10",
     "@vitejs/plugin-legacy": "^6.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tailwindcss": "^4.1.10",
     "vite": "^6.2.2",
     "ws": "^8.18.0",
     "yargs": "^17.7.2",
-    "zip-lib": "^1.0.5"
+    "zip-lib": "^1.0.5",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
-    "@deskthing/types": "^0.11.3",
+    "@deskthing/types": "^0.11.8",
     "@types/node": "^22.13.17",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",

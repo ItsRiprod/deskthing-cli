@@ -1,5 +1,4 @@
-import { ClientService } from './clientService'
-import { ClientConfig } from './clientConfig'
+import { ClientService } from '../services/clientService'
 import { LOGGING_LEVELS } from '@deskthing/types'
 
 export class ClientLogger {
@@ -47,10 +46,5 @@ export class ClientLogger {
       default:
         console.log('[CLIENT LOGGING: ]', type, message, ...data)
     }
-  }
-
-  // Get the current config - useful for components that need to check config
-  static getConfig() {
-    return ClientConfig.getConfig()
   }
 }

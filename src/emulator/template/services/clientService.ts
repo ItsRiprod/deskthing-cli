@@ -1,5 +1,5 @@
-import { DeskThingClientConfig, LoggingLevel } from "../../config/deskthing.config.types";
-import { clientConfig, ClientConfig } from "./clientConfig";
+import { DeskThingClientConfig, LoggingLevel } from "../../../config/deskthing.config.types";
+import { useClientStore } from "../stores/clientStore";
 import { ClientLogger } from "./clientLogger";
 import { ClientMessageBus } from "./clientMessageBus";
 
@@ -18,7 +18,6 @@ export class ClientService {
 
     ClientLogger.debug("Initializing the wrapper...");
     ClientMessageBus.subscribe("client:response", async (data: any) => {
-      this.log("debug", "Got client:response", data);
       const handlers = ClientService.responseHandlers[data.type];
       if (handlers && Array.isArray(handlers)) {
         try {
@@ -53,7 +52,7 @@ export class ClientService {
         })
         this.logCache = []
       }
-      ClientConfig.updateConfig(config);
+      useClientStore.getState().updateConfig(config)
       ClientMessageBus.initialize(`ws://${window.location.hostname}:${config.linkPort}`);
       ClientLogger.debug("Client config loaded:", config);
     });
@@ -118,7 +117,12 @@ export class ClientService {
   }
 
   static sendToApp(data: any) {
-    ClientMessageBus.publish("app:data", { ...data, clientId: '1234567890' });
+
+    if (!data.clientId) {
+      data.clientId = useClientStore.getState().clientId || '1234567890'
+    }
+
+    ClientMessageBus.publish("app:data", { ...data, clientId: data.clientId || '1234567890' });
   }
 
   private static shouldLog(
@@ -138,9 +142,10 @@ export class ClientService {
 
   static log(level: LoggingLevel, message: string, ...data: any[]) {
     // Only log if the level is appropriate based on config
-
+    const clientConfig = useClientStore.getState().config
     if (clientConfig.logging.level == undefined) {
       this.logCache.push({ level, message, data })
+
       return
     }
 

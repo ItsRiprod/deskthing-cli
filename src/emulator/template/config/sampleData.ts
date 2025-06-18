@@ -7,7 +7,7 @@ import {
   SongData,
   TagTypes,
 } from "@deskthing/types";
-import { clientConfig } from "./clientConfig"
+import { useClientStore } from "../stores/clientStore"
 
 export const sampleSongs: SongData = {
   album: "Random Access Memories",
@@ -40,6 +40,7 @@ export const sampleSongs: SongData = {
     isDark: true,
     isLight: false,
   },
+  version: 1
 };
 
 export const sampleApps: App[] = [
@@ -85,24 +86,31 @@ export const sampleApps: App[] = [
   },
 ];
 
-export const sampleClientManifest: ClientManifest = {
-  id: "sample-client",
-  name: "Sample Client",
-  short_name: "SampleClient",
-  description: "A sample client manifest",
-  reactive: true,
-  repository: "https://github.com/sample/client",
-  author: "Sample Author",
-  version: "1.0.0",
-  compatibility: {
-    server: "1.0.0",
-    app: "1.0.0",
-  },
-  context: {
-    ip: clientConfig.viteLocation || "127.0.0.1",
-    port: clientConfig.linkPort || 3000,
-    method: ClientConnectionMethod.LAN,
-    id: ClientPlatformIDs.Desktop,
-    name: "Desktop",
-  },
-};
+// Dynamic client manifest that uses store config
+export const getSampleClientManifest = (): ClientManifest => {
+  
+  return {
+    id: "sample-client",
+    name: "Sample Client",
+    short_name: "SampleClient",
+    description: "A sample client manifest",
+    reactive: true,
+    repository: "https://github.com/sample/client",
+    author: "Sample Author",
+    version: "1.0.0",
+    compatibility: {
+      server: "1.0.0",
+      app: "1.0.0",
+    },
+    context: {
+      ip: "127.0.0.1",
+      port: 3000,
+      method: ClientConnectionMethod.LAN,
+      id: ClientPlatformIDs.Desktop,
+      name: "Desktop",
+    },
+  }
+}
+
+// For backward compatibility
+export const sampleClientManifest = getSampleClientManifest()

@@ -40,12 +40,22 @@ async function buildWorkers() {
     console.warn("\x1b[90m(Can be ignored if you do not have workers)\x1b[0m");
     return
   }
-
   try {
+    const workersDir = "server/workers";
+    const files = await readdir(workersDir);
+    const tsFiles = files
+      .filter(file => file.endsWith('.ts'))
+      .map(file => join(workersDir, file));
+
+    // Only proceed if there are TypeScript files to build
+    if (tsFiles.length === 0) {
+      console.warn("\x1b[35mNo TypeScript files found in workers directory\x1b[0m");
+      return;
+    }
 
 
     await buildEsbuild({
-      entryPoints: ["server/workers/*.ts"],
+      entryPoints: tsFiles,
       bundle: true,
       platform: "node",
       outdir: "dist/server/workers",
@@ -58,11 +68,11 @@ async function buildWorkers() {
           // ESM shims for Node.js built-in modules
           import { createRequire as DeskThingCreateRequire } from 'module';
           import { fileURLToPath as DeskThingFileURLToPath } from 'url';
-          import path from 'node:path';
+          import { dirname as DeskThingDirname } from 'node:path';
 
             const require = DeskThingCreateRequire(import.meta.url);
             const __filename = DeskThingFileURLToPath(import.meta.url);
-            const __dirname = path.dirname(__filename);
+            const __dirname = DeskThingDirname(__filename);
         `      }
     });
   } catch (error) {

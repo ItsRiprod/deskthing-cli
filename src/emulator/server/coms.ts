@@ -435,9 +435,10 @@ const handleConnectionsRequest: HandlerFunction<APP_REQUESTS.GET, 'connections'>
   const sampleClient: Client = {
     clientId: "sample-id",
     connected: false,
+    meta: {},
     identifiers: {
-      'sample-provider': {
-        id: "sample-id",
+      adb: {
+        id: "sample-provider",
         capabilities: [],
         method: ClientConnectionMethod.Unknown,
         providerId: 'sample-provider',
@@ -483,6 +484,7 @@ const handleSendToClient: RequestHandler<APP_REQUESTS.SEND> = {
       type: appData.payload.type || "",
       payload: appData.payload.payload ?? "",
       request: appData.payload.request || "",
+      clientId: appData.payload.clientId || "",
     });
   },
 };
