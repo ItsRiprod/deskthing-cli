@@ -7,6 +7,20 @@ export default defineConfig({
   plugins: [react(), tailwindcss(),
   ],
   root: 'src/emulator/template',
+  server: {
+    proxy: {
+      '^/config$': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      },
+      '^/api/': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  },
   build: {
     emptyOutDir: true,
     outDir: 'dist/emulator',

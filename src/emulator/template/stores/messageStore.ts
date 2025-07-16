@@ -5,43 +5,23 @@ import { ClientLogger } from '../services/clientLogger'
 import { useClientStore } from './clientStore'
 
 interface MessageState {
-  // Message queue for debugging
-  messageHistory: Array<{ timestamp: number; type: string; data: any }>
-
   // Actions
   handleIframeMessage: (data: ClientToDeviceData, origin: string) => void
   sendToIframe: (data: DeviceToClientCore) => void
-  addToHistory: (type: string, data: any) => void
-  clearHistory: () => void
 }
 
 export const useMessageStore = create<MessageState>()((set, get) => ({
-  messageHistory: [],
-
-  addToHistory: (type, data) =>
-    set((state) => ({
-      messageHistory: [
-        ...state.messageHistory.slice(-99), // Keep last 100 messages
-        { timestamp: Date.now(), type, data }
-      ]
-    })),
-
-  clearHistory: () => set({ messageHistory: [] }),
-
   sendToIframe: (data) => {
     const iframe = document.querySelector('#app') as HTMLIFrameElement
     if (iframe?.contentWindow) {
       const augmentedData = { ...data, source: "deskthing" }
+      ClientLogger.debug('Sending data to iframe', augmentedData)
       iframe.contentWindow.postMessage(augmentedData, "*")
-      get().addToHistory('SENT_TO_IFRAME', augmentedData)
     }
   },
 
   handleIframeMessage: (data, origin) => {
-    const { addToHistory } = get()
     const { appManifest, setSongData } = useClientStore.getState()
-
-    addToHistory('RECEIVED_FROM_IFRAME', data)
 
     if (data.app === "client") {
       handleClientMessage(data)
@@ -54,19 +34,24 @@ export const useMessageStore = create<MessageState>()((set, get) => ({
 // Helper functions
 const handleClientMessage = (data: ClientToDeviceData) => {
   const { sendToIframe } = useMessageStore.getState()
-  const { songData, settings, apps, clientManifest } = useClientStore.getState()
+  const { songData, settings, apps, clientManifest, requestSettings } = useClientStore.getState()
 
   switch (data.type) {
     case "get":
       switch (data.request) {
         case "song":
+        case "music":
           ClientLogger.debug("Get request for music, Sending music", songData)
           sendToIframe({ type: DEVICE_CLIENT.MUSIC, app: "client", payload: songData })
           break
 
         case "settings":
           ClientLogger.debug("Get request for settings, Sending settings")
-          sendToIframe({ type: DEVICE_CLIENT.SETTINGS, app: "client", payload: settings })
+          requestSettings().then((settings) => {
+            sendToIframe({ type: DEVICE_CLIENT.SETTINGS, app: "client", payload: settings })
+          }).catch((error) => {
+            ClientLogger.error("Failed to get settings:", error)
+          })
           break
 
         case "apps":

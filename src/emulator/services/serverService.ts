@@ -3,6 +3,7 @@ import { getManifestDetails } from '../server/manifestDetails'
 import { Logger } from './logger'
 import { ServerMessageBus } from '../server/serverMessageBus'
 import { DeskThingConfig } from '../../config/deskthing.config'
+import { SettingService } from './settingService'
 
 export class ServerService {
   constructor() {
@@ -24,6 +25,9 @@ export class ServerService {
       case "getSettings":
         this.sendSettingsData()
         break
+      case "setSettings":
+        SettingService.updateSettings(data.payload);
+        break;
       case "getClientConfig":  // Add this new case
         this.sendClientConfig()
         break
@@ -68,10 +72,10 @@ export class ServerService {
   }
 
   private sendSettingsData() {
-    const data = getServerData()
+    const settings = SettingService.getSettings();
     ServerMessageBus.publish('client:response', {
       type: 'settings',
-      payload: data.settings
+      payload: settings
     })
   }
 

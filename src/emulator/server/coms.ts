@@ -18,6 +18,7 @@ import {
 import { DeskThingConfig } from "../../config/deskthing.config";
 import { exec } from "child_process";
 import { MusicService } from "../services/musicService"
+import { SettingService } from "../services/settingService";
 
 type HandlerFunction<
   T extends APP_REQUESTS | SongEvent | "default",
@@ -42,10 +43,8 @@ const serverService = new ServerService();
 
 let Data: {
   data: { [key: string]: any };
-  settings: AppSettings;
 } = {
   data: {},
-  settings: {},
 };
 
 export const getServerData = () => Data;
@@ -88,14 +87,12 @@ export const handleDataFromApp = async (
  */
 const handleRequestMissing: HandlerFunction<any, any> = (app: string, appData: any) => {
   Logger.warn(
-    `[handleComs]: App ${app} sent unknown data type: ${
-      appData.type
-    } and request: ${appData.request}, with payload ${
-      appData.payload
-        ? JSON.stringify(appData.payload).length > 1000
-          ? "[Large Payload]"
-          : JSON.stringify(appData.payload)
-        : "undefined"
+    `[handleComs]: App ${app} sent unknown data type: ${appData.type
+    } and request: ${appData.request}, with payload ${appData.payload
+      ? JSON.stringify(appData.payload).length > 1000
+        ? "[Large Payload]"
+        : JSON.stringify(appData.payload)
+      : "undefined"
     }`,
     app
   );
@@ -125,15 +122,13 @@ const handleRequestSetSettings: HandlerFunction<
     "Rebuilt Settings with mocked data. Setting to: ",
     rebuiltSettings
   );
-  Data.settings = { ...Data.settings, ...rebuiltSettings };
+  let settings = SettingService.getSettings()
+  settings = { ...settings, ...rebuiltSettings };
 
   // Simulate loading before settings are "submitted" and sent back
   await new Promise((resolve) => setTimeout(resolve, 5000));
   Logger.debug("Sending settings back to the server");
-  ServerMessageBus.notify("app:data", {
-    type: "settings",
-    payload: rebuiltSettings,
-  });
+  SettingService.setSettings(settings);
 };
 
 const handleRequestSetData: HandlerFunction<APP_REQUESTS.SET, "data"> = async (
@@ -159,9 +154,10 @@ const handleRequestSetAppData: HandlerFunction<
   if (!appData.payload) return;
   const { settings, ...data } = appData.payload;
 
+  SettingService.updateSettings(settings)
+
   Data = {
-    data: { ...Data.data, ...data },
-    settings: { ...Data.settings, ...settings },
+    data: { ...Data.data, ...data }
   };
 };
 
@@ -370,10 +366,13 @@ const handleRequestGetSettings: HandlerFunction<APP_REQUESTS.GET, 'settings'> = 
   app
 ): Promise<void> => {
   Logger.info(`[handleAppData]: App is requesting settings`);
-  Logger.debug(`[handleAppData]: Returning Settings:`, Data.settings);
+
+  const settings = SettingService.getSettings();
+
+  Logger.debug(`[handleAppData]: Returning Settings:`, settings);
   ServerMessageBus.notify("app:data", {
     type: "settings",
-    payload: Data.settings,
+    payload: settings,
   });
 };
 
@@ -399,11 +398,8 @@ const handleRequestDelSettings: HandlerFunction<APP_REQUESTS.DELETE, 'settings'>
     );
     return;
   }
-  Data.data = Object.fromEntries(
-    Object.entries(Data.settings).filter(
-      ([key]) => !appData.payload.includes(key)
-    )
-  );
+
+  SettingService.delSettings(Array.isArray(appData.payload) ? appData.payload : [appData.payload]);
 };
 
 /**
@@ -582,8 +578,8 @@ const handleData: TypeHandler = {
   [APP_REQUESTS.KEY]: handleKey,
   [APP_REQUESTS.ACTION]: handleAction,
   default: handleDefault,
-  step: { default: () => {} },
-  task: { default: () => {} },
+  step: { default: () => { } },
+  task: { default: () => { } },
   [APP_REQUESTS.SONG]: handleSong,
 };
 

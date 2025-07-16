@@ -1,3 +1,4 @@
+import { AppSettings } from "@deskthing/types";
 import { DeskThingClientConfig, LoggingLevel } from "../../../config/deskthing.config.types";
 import { useClientStore } from "../stores/clientStore";
 import { ClientLogger } from "./clientLogger";
@@ -10,7 +11,7 @@ type log = { level: LoggingLevel, message: string, data: any[] }
 export class ClientService {
   private static responseHandlers: Record<string, callback[]> = {};
   private static isInitialized = false;
-  private static logCache: log[] = [] 
+  private static logCache: log[] = []
 
   static initialize() {
     if (this.isInitialized) return;
@@ -18,7 +19,7 @@ export class ClientService {
 
     ClientLogger.debug("Initializing the wrapper...");
     ClientMessageBus.subscribe("client:response", async (data: any) => {
-      const handlers = ClientService.responseHandlers[data.type];
+      const handlers = this.responseHandlers[data.type];
       if (handlers && Array.isArray(handlers)) {
         try {
 
@@ -37,15 +38,22 @@ export class ClientService {
       }
     });
 
-    // Fetch client configuration on startup
-    this.requestClientConfig((config) => {
-      
+    let attempts = 0
+
+    const responseHandler = (config) => {
       if (!config) {
         this.logCache.forEach((log) => {
           console.log(log.level, log.message, ...log.data)
         })
-      }
 
+        if (attempts < 5) {
+          attempts++
+          ClientLogger.warn(`Failed to load client config, retrying... (${attempts}/5)`)
+          setTimeout(() => this.requestClientConfig(responseHandler, { hostname: 'localhost', port: 3000 }), 1000 * attempts)
+        }
+        return
+      }
+  
       if (this.logCache.length > 0) {
         this.logCache.forEach((log) => {
           this.log(log.level, log.message, ...log.data)
@@ -53,13 +61,17 @@ export class ClientService {
         this.logCache = []
       }
       useClientStore.getState().updateConfig(config)
-      ClientMessageBus.initialize(`ws://${window.location.hostname}:${config.linkPort}`);
+      ClientMessageBus.initialize(`ws://${window.location.hostname}:${config?.linkPort || window.location.port}`);
       ClientLogger.debug("Client config loaded:", config);
-    });
+
+    }
+
+    // Fetch client configuration on startup
+    this.requestClientConfig(responseHandler);
   }
 
-  static requestClientConfig(callback: (data: DeskThingClientConfig) => void) {
-    fetch(`http://${window.location.hostname}:${window.location.port}/config`)
+  static requestClientConfig(callback: (data: DeskThingClientConfig) => void, options?: { hostname?: string, port?: number }) {
+    fetch(`http://${options?.hostname || window.location.hostname}:${options?.port || window.location.port}/config`)
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -87,18 +99,23 @@ export class ClientService {
     }
   }
 
+  static saveSettings(settings: AppSettings) {
+    ClientMessageBus.publish("client:request", { type: "setSettings", payload: settings });
+  }
+
   static requestManifest(callback: (data: any) => void) {
     if (!this.responseHandlers["manifest"]) {
       this.responseHandlers["manifest"] = [];
     }
-    
+
     this.responseHandlers["manifest"].push(callback);
-    
+
     if (this.responseHandlers["manifest"].length === 1) {
       ClientMessageBus.publish("client:request", { type: "getManifest" });
     }
   }
-  static requestSettings(callback: (data: any) => void) {
+
+  static requestSettings(callback: (data: AppSettings) => void) {
     if (!this.responseHandlers["settings"]) {
       this.responseHandlers["settings"] = [];
     }
@@ -108,7 +125,10 @@ export class ClientService {
     // Only send the request if there are handlers and no request is pending
     if (this.responseHandlers["settings"].length === 1) {
       // Only send if this is the first handler
+      ClientLogger.debug("Requesting settings from server");
       ClientMessageBus.publish("client:request", { type: "getSettings" });
+    } else {
+      ClientLogger.debug("Settings request already pending, adding another handler");
     }
   }
 

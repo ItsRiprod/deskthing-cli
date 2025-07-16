@@ -7,29 +7,38 @@ import {
   SongData,
   TagTypes,
 } from "@deskthing/types";
-import { useClientStore } from "../stores/clientStore"
+import { SongAbilities } from "@deskthing/types";
 
 export const sampleSongs: SongData = {
-  album: "Random Access Memories",
-  artist: "Daft Punk",
+  version: 2,
+  track_name: "No One Wants To Die Alone",
+  album: "Homesick",
+  artist: "Benjamin Steer",
   playlist: "Electronic Essentials",
   playlist_id: "playlist_001",
-  track_name: "Get Lucky",
   shuffle_state: false,
   repeat_state: "off",
   is_playing: true,
-  can_fast_forward: true,
-  can_skip: true,
-  can_like: true,
-  can_change_volume: true,
-  can_set_output: true,
+  source: "sample-app-2",
+  abilities: [
+    SongAbilities.LIKE,
+    SongAbilities.SHUFFLE,
+    SongAbilities.REPEAT,
+    SongAbilities.PLAY,
+    SongAbilities.PAUSE,
+    SongAbilities.STOP,
+    SongAbilities.NEXT,
+    SongAbilities.FAST_FORWARD,
+    SongAbilities.CHANGE_VOLUME,
+    SongAbilities.SET_OUTPUT,
+  ],
   track_duration: 369000,
   track_progress: 145000,
   volume: 75,
-  thumbnail: "https://i.scdn.co/image/ab67616d0000b273e787cffec20aa2a396a61647",
+  thumbnail: "https://i.scdn.co/image/ab67616d0000b273da079cd1ffdfe77cf10d2519",
   device: "Desktop Speaker",
-  id: "track_001",
   device_id: "device_001",
+  id: "track_001",
   liked: true,
   color: {
     value: [41, 128, 185],
@@ -40,7 +49,12 @@ export const sampleSongs: SongData = {
     isDark: true,
     isLight: false,
   },
-  version: 1
+  // Deprecated fields for backward compatibility
+  can_like: true,
+  can_change_volume: true,
+  can_set_output: true,
+  can_fast_forward: true,
+  can_skip: true,
 };
 
 export const sampleApps: App[] = [

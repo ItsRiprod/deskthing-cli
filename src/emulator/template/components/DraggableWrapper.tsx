@@ -181,7 +181,7 @@ const DraggableWrapper: React.FC<DraggableWrapperProps> = ({ children, isExpande
       ref={elementRef}
       className={`fixed select-none ${
         isExpanded
-          ? 'bg-gray-900/95 z-50 transition-all duration-300'
+          ? 'bg-gray-900/95 max-h-screen overflow-y-auto z-50 transition-all duration-300'
           : 'w-10 h-10 rounded-lg bg-gray-900/90 z-40'
       }`}
       style={{

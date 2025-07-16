@@ -3,7 +3,7 @@ import { useClientStore } from "../stores/clientStore";
 import { useMessageStore } from "../stores/messageStore";
 import { useConnectionStore } from "../stores/connectionStore";
 import { ClientService } from "../services/clientService";
-import { DESKTHING_EVENTS } from "@deskthing/types";
+import { DESKTHING_EVENTS, DEVICE_CLIENT } from "@deskthing/types";
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -50,7 +50,7 @@ export const DevWrapper: React.FC = () => {
   // Send song data when it changes
   useEffect(() => {
     sendToIframe({
-      type: "DEVICE_CLIENT.MUSIC" as any,
+      type: DEVICE_CLIENT.MUSIC,
       app: "client",
       payload: songData,
     });

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
-import { SongData, App, AppManifest, ClientManifest } from '@deskthing/types'
+import { SongData, App, AppManifest, ClientManifest, AppSettings, SettingsType } from '@deskthing/types'
 import { sampleSongs, sampleApps, sampleClientManifest } from '../config/sampleData'
 import { ClientService } from '../services/clientService'
 import { ClientLogger } from '../services/clientLogger'
@@ -38,7 +38,7 @@ interface ClientState {
   songData: SongData
 
   // Settings
-  settings: Record<string, any>
+  settings: AppSettings
 
   // Config actions
   updateConfig: (newConfig: Partial<DeskThingClientConfig>) => void
@@ -53,12 +53,14 @@ interface ClientState {
   resetConnectionAttempts: () => void
   setAppManifest: (manifest: AppManifest) => void
   setSongData: (song: Partial<SongData>) => void
-  setSettings: (settings: Record<string, any>) => void
+  setSettings: (settings: AppSettings) => void
+  updateSetting: (settingId: string, value: SettingsType['value']) => void
+  saveSettings: () => Promise<void>
   setApps: (apps: App[]) => void
 
   // Async actions
   requestManifest: () => Promise<void>
-  requestSettings: () => Promise<void>
+  requestSettings: () => Promise<AppSettings>
   requestApps: () => Promise<void>
 }
 
@@ -82,8 +84,8 @@ export const useClientStore = create<ClientState>()(
           ...state.config,
           ...newConfig,
           logging: {
-            ...state.config.logging,
-            ...(newConfig.logging || {})
+            ...state.config?.logging,
+            ...(newConfig?.logging || {})
           }
         }
       })),
@@ -115,6 +117,29 @@ export const useClientStore = create<ClientState>()(
 
     setSettings: (settings) => set({ settings }),
 
+    updateSetting: (settingId, value) => {
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          [settingId]: {
+            ...state.settings[settingId],
+            id: settingId,
+            value
+          } as SettingsType & { id: string }
+        }
+      }))
+    },
+
+    saveSettings: async () => {
+      try {
+        const { settings } = get()
+        ClientService.saveSettings(settings)
+        ClientLogger.debug('Settings saved successfully:', settings)
+      } catch (error) {
+        ClientLogger.error('Failed to save settings:', error)
+      }
+    },
+
     setApps: (apps) => set({ apps }),
 
     // Async actions
@@ -131,10 +156,12 @@ export const useClientStore = create<ClientState>()(
 
     requestSettings: async () => {
       try {
-        const settings = await new Promise<Record<string, any>>((resolve) => {
+        const settings = await new Promise<AppSettings>((resolve) => {
           ClientService.requestSettings(resolve)
         })
+        ClientLogger.debug('Received settings:', settings)
         set({ settings })
+        return settings
       } catch (error) {
         ClientLogger.error('Failed to request settings:', error)
       }
