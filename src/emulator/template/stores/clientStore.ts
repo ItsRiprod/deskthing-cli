@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { SongData, App, AppManifest, ClientManifest, AppSettings, SettingsType } from '@deskthing/types'
-import { sampleSongs, sampleApps, sampleClientManifest } from '../config/sampleData'
+import { sampleSongs, sampleApps, getSampleClientManifest } from '../config/sampleData'
 import { ClientService } from '../services/clientService'
 import { ClientLogger } from '../services/clientLogger'
 import { DeskThingClientConfig } from '../../../config/deskthing.config.types'
@@ -72,7 +72,7 @@ export const useClientStore = create<ClientState>()(
     isViteServerConnected: false,
     connectionAttempts: 0,
     appManifest: null,
-    clientManifest: sampleClientManifest,
+    clientManifest: getSampleClientManifest(),
     apps: sampleApps,
     songData: sampleSongs,
     settings: {},
@@ -86,6 +86,13 @@ export const useClientStore = create<ClientState>()(
           logging: {
             ...state.config?.logging,
             ...(newConfig?.logging || {})
+          }
+        },
+        clientManifest: { // also update the port in case it was changed
+          ...state.clientManifest,
+          context: {
+            ...state.clientManifest.context,
+            port: newConfig.clientPort || state.clientManifest.context.port
           }
         }
       })),

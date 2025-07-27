@@ -4,6 +4,8 @@ import { useMessageStore } from "../stores/messageStore";
 import { useConnectionStore } from "../stores/connectionStore";
 import { ClientService } from "../services/clientService";
 import { DESKTHING_EVENTS, DEVICE_CLIENT } from "@deskthing/types";
+import { Logger } from "../../services/logger";
+import { ClientLogger } from "../services/clientLogger";
 
 export const DevWrapper: React.FC = () => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -18,14 +20,18 @@ export const DevWrapper: React.FC = () => {
   const appManifest = useClientStore((state) => state.appManifest);
   const clientId = useClientStore((state) => state.clientId);
   const songData = useClientStore((state) => state.songData);
+  const clientManifest = useClientStore((state) => state.clientManifest);
   const requestManifest = useClientStore((state) => state.requestManifest);
-  
+
   // Message Store subscriptions
   const handleIframeMessage = useMessageStore(
     (state) => state.handleIframeMessage
   );
   const sendToIframe = useMessageStore((state) => state.sendToIframe);
-  
+  const processQueueItems = useMessageStore(
+    (state) => state.processMessageQueue
+  );
+
   // Connection Store subscriptions
   const initialize = useConnectionStore((state) => state.initialize);
   const checkViteServer = useConnectionStore((state) => state.checkViteServer);
@@ -33,7 +39,19 @@ export const DevWrapper: React.FC = () => {
     (state) => state.setupMessageBusSubscription
   );
   const viteDevUrl = useConnectionStore((state) => state.viteDevUrl);
-  
+
+  useEffect(() => {
+    // handle syncing the client manifest with the iframe
+    if (clientManifest) {
+      ClientLogger.debug("Sending client manifest to iframe", clientManifest);
+      sendToIframe({
+        type: DEVICE_CLIENT.MANIFEST,
+        app: "client",
+        payload: clientManifest,
+      });
+    }
+  }, [clientManifest]);
+
   // Initialize connection on mount
   useEffect(() => {
     initialize();
@@ -89,6 +107,15 @@ export const DevWrapper: React.FC = () => {
       request: "opened",
       payload: clientStatusPayload,
     });
+
+    sendToIframe({
+      type: DEVICE_CLIENT.MANIFEST,
+      app: "client",
+      payload: clientManifest,
+    });
+
+    // initialize with the client manifest
+    processQueueItems();
   };
 
   const handleIframeError = () => {

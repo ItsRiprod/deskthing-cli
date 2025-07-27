@@ -5,19 +5,52 @@ import { ClientLogger } from '../services/clientLogger'
 import { useClientStore } from './clientStore'
 
 interface MessageState {
+  messageQueue: DeviceToClientCore[]
   // Actions
   handleIframeMessage: (data: ClientToDeviceData, origin: string) => void
-  sendToIframe: (data: DeviceToClientCore) => void
+  sendToIframe: (data: DeviceToClientCore) => boolean
+
+  processMessageQueue: () => void
 }
 
 export const useMessageStore = create<MessageState>()((set, get) => ({
+
+  messageQueue: [],
+
   sendToIframe: (data) => {
     const iframe = document.querySelector('#app') as HTMLIFrameElement
     if (iframe?.contentWindow) {
       const augmentedData = { ...data, source: "deskthing" }
       ClientLogger.debug('Sending data to iframe', augmentedData)
       iframe.contentWindow.postMessage(augmentedData, "*")
+      return true
+    } else {
+      ClientLogger.error('Iframe not found or not ready to receive messages, queuing message')
+      get().messageQueue.push(data)
+      return false
     }
+  },
+
+  processMessageQueue: () => {
+    const process = () => {
+      const queue = get().messageQueue
+      if (queue.length === 0) return
+
+      ClientLogger.debug('Processing message queue', queue)
+      // Try sending the first message
+      const data = queue[0]
+
+      const success = get().sendToIframe(data)
+      if (success) {
+        // Remove the sent message and recurse
+        set({ messageQueue: queue.slice(1) })
+        process()
+      } else {
+        ClientLogger.error('Iframe not found or not ready, stopping message queue processing')
+        return
+      }
+    }
+    process()
   },
 
   handleIframeMessage: (data, origin) => {
@@ -47,6 +80,13 @@ const handleClientMessage = (data: ClientToDeviceData) => {
 
         case "settings":
           ClientLogger.debug("Get request for settings, Sending settings")
+          if (settings) {
+            sendToIframe({ type: DEVICE_CLIENT.SETTINGS, app: "client", payload: settings })
+            break
+          } else {
+            ClientLogger.warn("Settings not available, requesting from server")
+          }
+
           requestSettings().then((settings) => {
             sendToIframe({ type: DEVICE_CLIENT.SETTINGS, app: "client", payload: settings })
           }).catch((error) => {

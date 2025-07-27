@@ -125,6 +125,3 @@ export const getSampleClientManifest = (): ClientManifest => {
     },
   }
 }
-
-// For backward compatibility
-export const sampleClientManifest = getSampleClientManifest()

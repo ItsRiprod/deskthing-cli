@@ -97,7 +97,7 @@ export class SettingService {
       }
     }
 
-    this.sendSettings();
+    this.setSettings(this.currentSettings);
   }
 
   static delSettings(settingIds: string[]) {

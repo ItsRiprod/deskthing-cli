@@ -1,6 +1,7 @@
   import path from 'path';
   import fs from 'fs';
 import { Logger } from '../services/logger'
+import { DeskThingConfig } from '../../config/deskthing.config';
 
   type PlatformTypes = 'linux' | 'windows' | 'macos';
   type TagTypes = 'system' | 'utility' | 'media' | 'development' | 'network' | 'gaming';
@@ -38,6 +39,7 @@ import { Logger } from '../services/logger'
     const manifest = JSON.parse(fs.readFileSync(finalPath, 'utf8'));
     
     return {
+      ...manifest, // catch all for any new fields added in the future
       id: manifest.id,
       isWebApp: manifest.isWebApp,
       requires: manifest.requires,
@@ -52,6 +54,6 @@ import { Logger } from '../services/logger'
       compatible_client: manifest.compatible_client,
       repository: manifest.repository,
       tags: manifest.tags as TagTypes[],
-      requiredVersions: manifest.requiredVersions
+      requiredVersions: manifest.requiredVersions,
     };
   };
