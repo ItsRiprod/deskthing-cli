@@ -1,6 +1,7 @@
 import { Logger } from "./logger";
 import { ServerMessageBus } from "../server/serverMessageBus";
 import { AppSettings, DESKTHING_DEVICE } from "@deskthing/types";
+import { DeskThingConfig } from "../../config/deskthing.config";
 
 export class SettingService {
   private static currentSettings: AppSettings = {};
@@ -21,11 +22,81 @@ export class SettingService {
   }
 
   static getSettings(): AppSettings {
-    return this.currentSettings;
+    return this.currentSettings || {};
   }
 
-  static setSettings(settings: AppSettings) {
-    this.currentSettings = settings;
+  static async setSettings(appSettings: AppSettings) {
+
+    if (!this.currentSettings) {
+      this.currentSettings = {};
+    }
+
+    // Shallow merge the new settings into the current settings - prefering the new settings over the old ones
+    this.currentSettings = { ...this.currentSettings, ...appSettings };
+
+    // simulate the user "adding settings" and then submitting them based on the config mock data
+
+    const rebuiltSettings: AppSettings = Object.fromEntries(
+      Object.entries(appSettings).map(([key, setting]) => {
+        return [
+          key,
+          {
+            ...setting,
+            value:
+              DeskThingConfig.development?.server?.mockData?.settings[key] ??
+              setting.value,
+          },
+        ];
+      })
+    );
+
+    // Update the current settings with the rebuilt settings
+    this.currentSettings = { ...this.currentSettings, ...rebuiltSettings };
+
+
+    await new Promise(resolve => setTimeout(resolve, 1000)); // simulate delay
+
+    Logger.debug(
+      "Rebuilt Settings with mocked data. Setting to: ",
+      rebuiltSettings
+    );
+
+    // now send the updated settings to the server
+    this.sendSettings();
+  }
+
+  static async initSettings(settings: AppSettings) {
+    if (!this.currentSettings) {
+      this.currentSettings = {};
+    }
+
+    for (const key in settings) {
+      const newSetting = settings[key];
+      const existingSetting = this.currentSettings[key];
+
+      // If no existing setting, add it
+      if (!existingSetting) {
+        this.currentSettings[key] = newSetting;
+        continue;
+      }
+
+      // If new setting has a version
+      if (newSetting && typeof newSetting.version !== "undefined") {
+        // If versions differ, overwrite
+        if (
+          !existingSetting.version ||
+          existingSetting.version !== newSetting.version
+        ) {
+          this.currentSettings[key] = newSetting;
+        }
+        // If versions are the same, keep existing
+        // (do nothing)
+      } else {
+        // If new setting has no version, prefer existing
+        // (do nothing)
+      }
+    }
+
     this.sendSettings();
   }
 

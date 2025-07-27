@@ -105,30 +105,18 @@ const handleRequestSetSettings: HandlerFunction<
   Logger.info("Simulating adding settings");
   Logger.debug("Settings being added: ", appData.payload);
   const appSettings = appData.payload as AppSettings;
-  const rebuiltSettings: AppSettings = Object.fromEntries(
-    Object.entries(appSettings).map(([key, setting]) => {
-      return [
-        key,
-        {
-          ...setting,
-          value:
-            DeskThingConfig.development?.server?.mockData?.settings[key] ??
-            setting.value,
-        },
-      ];
-    })
-  );
-  Logger.debug(
-    "Rebuilt Settings with mocked data. Setting to: ",
-    rebuiltSettings
-  );
-  let settings = SettingService.getSettings()
-  settings = { ...settings, ...rebuiltSettings };
 
-  // Simulate loading before settings are "submitted" and sent back
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-  Logger.debug("Sending settings back to the server");
-  SettingService.setSettings(settings);
+  await SettingService.setSettings(appSettings);
+};
+
+const handleRequestInitSettings: HandlerFunction<
+  APP_REQUESTS.SET,
+  "settings-init"
+> = async (app, appData) => {
+  Logger.info("Simulating initializing settings");
+  Logger.debug("Settings being initialized: ", appData.payload);
+  const appSettings = appData.payload as AppSettings;
+  await SettingService.initSettings(appSettings);
 };
 
 const handleRequestSetData: HandlerFunction<APP_REQUESTS.SET, "data"> = async (
@@ -438,6 +426,7 @@ const handleConnectionsRequest: HandlerFunction<APP_REQUESTS.GET, 'connections'>
         capabilities: [],
         method: ClientConnectionMethod.Unknown,
         providerId: 'sample-provider',
+        connectionState: ConnectionState.Established,
         active: false,
       }
     },
@@ -465,6 +454,7 @@ const handleSet: RequestHandler<APP_REQUESTS.SET> = {
   data: handleRequestSetData,
   appData: handleRequestSetAppData,
   default: handleRequestMissing,
+  'settings-init': handleRequestInitSettings,
 };
 const handleDelete: RequestHandler<APP_REQUESTS.DELETE> = {
   settings: handleRequestDelSettings,
