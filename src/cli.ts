@@ -8,6 +8,8 @@ import { packageApp } from "./package";
 import { packageClient } from "./packageClient";
 import { stat, writeFile } from "fs/promises";
 import { initConfig } from "./config/deskthing.config";
+import { Logger } from "./utils/logger"
+import { checkForUpdates } from "./utils/checkVersion"
 
 await initConfig({ silent: true });
 
@@ -17,8 +19,21 @@ const thisPackage = (await import("../package.json", {
 })
   .catch(() => ({ default: { version: "0.0.0" } }))
   .then((module) => module?.default)) || { version: "0.0.0" };
-// Banner for the CLI
-console.log(`
+
+// universal args
+const isSilent = process.argv.includes("--silent")
+const noUpdate = process.argv.includes("--no-update") || process.argv.includes("--noUpdate")
+const autoUpdate = process.argv.includes("--auto-update") || process.argv.includes("--autoUpdate")
+const debug = process.argv.includes("--debug") || process.argv.includes("--verbose")
+
+Logger.configure({ silent: isSilent, debug: debug });
+
+if (!noUpdate) {
+  checkForUpdates(thisPackage.version, autoUpdate);
+}
+
+  // Banner for the CLI
+Logger.info(`
   ------------------------------------------------
       _           _    _   _     \x1b[92m_\x1b[0m             
      | |         | |  | | | |   \x1b[92m(_)\x1b[0m            
@@ -46,17 +61,17 @@ yargs(hideBin(process.argv))
       });
     },
     async (argv) => {
-      console.log(
+      Logger.info(
         `------- \x1b[1mdev\x1b[0m -- init -- update -- package --------`
       );
-      console.log("\n\n\x1b[1m🚀 Starting development server...\x1b[0m\n\n");
+      Logger.info("\n\n\x1b[1m🚀 Starting development server...\x1b[0m\n\n");
       // Install tsm if not already installed
       const tsmPath = join(process.cwd(), "node_modules", "tsm");
       try {
         await stat(tsmPath);
-        console.log("\x1b[1mtsm is installed\x1b[0m\n");
+        Logger.info("\x1b[1mtsm is installed\x1b[0m\n");
       } catch (e) {
-        console.log("\n\x1b[1mInstalling tsm dependency...\x1b[0m\n");
+        Logger.info("\n\x1b[1mInstalling tsm dependency...\x1b[0m\n");
         execSync("npm install tsm --no-save --legacy-peer-deps", {
           stdio: "inherit",
         });
@@ -96,28 +111,28 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       if (!argv.silent)
-        console.log(
+        Logger.info(
           `------- dev -- init -- \x1b[1mupdate\x1b[0m -- package --------`
         );
       if (!argv.silent)
-        console.log("Updating dependencies and configurations...");
+        Logger.info("Updating dependencies and configurations...");
 
       const args = ["create-deskthing@latest", "--update"];
 
       if (argv["no-overwrite"]) {
-        if (!argv.silent) console.log("\x1b[32m✓ No Overwrite Enabled\x1b[0m");
+        if (!argv.silent) Logger.info("\x1b[32m✓ No Overwrite Enabled\x1b[0m");
         args.push("--no-overwrite");
       }
       if (argv.force) {
-        if (!argv.silent) console.log("\x1b[32m✓ Force Enabled\x1b[0m");
+        if (!argv.silent) Logger.info("\x1b[32m✓ Force Enabled\x1b[0m");
         args.push("--force");
       }
       if (argv.debug) {
-        if (!argv.silent) console.log("\x1b[32m✓ Debug Enabled\x1b[0m");
+        if (!argv.silent) Logger.info("\x1b[32m✓ Debug Enabled\x1b[0m");
         args.push("--debug");
       }
       if (argv.silent) {
-        console.log("\x1b[32m✓ Silent Enabled\x1b[0m");
+        Logger.info("\x1b[32m✓ Silent Enabled\x1b[0m");
         args.push("--silent");
       }
 
@@ -146,10 +161,10 @@ yargs(hideBin(process.argv))
         });
     },
     async (argv) => {
-      console.log(
+      Logger.info(
         `------- dev -- init -- update -- \x1b[1mpackage\x1b[0m --------`
       );
-      console.log("Packaging app...");
+      Logger.info("Packaging app...");
 
       await packageApp({
         guided: argv.guided,
@@ -165,8 +180,8 @@ yargs(hideBin(process.argv))
       return yargs;
     },
     async () => {
-      console.log(`------- dev -- init -- update -- package --------\n`);
-      console.log(
+      Logger.info(`------- dev -- init -- update -- package --------\n`);
+      Logger.info(
         `-------           \x1b[1mpackaging client\x1b[0m       --------\n`
       );
 
@@ -188,13 +203,19 @@ yargs(hideBin(process.argv))
     }
   )
   .command("$0", "Show available commands", () => {
-    console.log(`------- dev -- init -- update -- package --------`);
-    console.log("Available commands:");
-    console.log("  dev       Start development server");
-    console.log("  update    Update dependencies and configurations");
-    console.log("  package   Package and zip up your app");
-    console.log("  init  Setup the DeskThing template");
-    console.log(
+    Logger.info(`------- dev -- init -- update -- package --------`);
+    Logger.info("Available commands:");
+    Logger.info("  dev       Start development server");
+    Logger.info("  update    Update dependencies and configurations");
+    Logger.info("  package   Package and zip up your app");
+    Logger.info("  init  Setup the DeskThing template");
+    Logger.info("Available Flags");
+    Logger.info("  --silent      Suppress all output");
+    Logger.info("  --debug       Verbosely logs information");
+    Logger.info("  --auto-update Automatically checks for an update");
+    Logger.info("  --no-update   Skips over the update check");
+    
+    Logger.info(
       "\nRun `deskthing <command> --help` for more information about a command."
     );
   })
@@ -242,12 +263,9 @@ export default defineConfig({
       const configPath = join(process.cwd(), "deskthing.config.js");
       try {
         await writeFile(configPath, configTemplate);
-        console.log(`\n\n\x1b[32m✅ File created at\n${configPath}\x1b[0m\n\n`);
+        Logger.success(`\n\n\x1b[32m✅ File created at\n${configPath}\x1b[0m\n\n`);
       } catch (error) {
-        console.error(
-          "\x1b[31m❌ Failed to create configuration file:\x1b[0m",
-          error
-        );
+        Logger.error(`\n\n\x1b[31m❌ Failed to create configuration file:\x1b[0m`, error);
       }
     }
   )

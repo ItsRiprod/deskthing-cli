@@ -3,11 +3,17 @@ import zl from "zip-lib";
 import { readdir, stat, cp, rm, mkdir } from "fs/promises";
 import { loadConfigs } from "./config";
 import { build as buildVite } from "vite";
+import viteLegacyPlugin from "@vitejs/plugin-legacy"
 
 async function buildClient() {
   await buildVite({
     configFile: "vite.config.ts",
     base: "./",
+    plugins: [
+      viteLegacyPlugin({
+        targets: ["Chrome 69"],
+      }),
+    ],
   });
 }
 
@@ -62,10 +68,16 @@ export async function createPackage() {
 
 async function clean() {
   const distPath = resolve("dist");
-  const files = await readdir(distPath);
-  for (const file of files) {
-    const filePath = join(distPath, file);
-    await rm(filePath, { recursive: true, force: true });
+
+  const distExists = await stat(distPath).catch(() => false);
+  if (!distExists) {
+    await mkdir(distPath, { recursive: true });
+  } else {
+    const files = await readdir(distPath);
+    for (const file of files) {
+      const filePath = join(distPath, file);
+      await rm(filePath, { recursive: true, force: true });
+    }
   }
 }
 
