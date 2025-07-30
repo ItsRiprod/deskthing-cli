@@ -39,6 +39,10 @@ yargs(hideBin(process.argv))
         type: "boolean",
         default: false,
         description: "Enable debug mode",
+      }).option("vite", {
+        type: "boolean",
+        default: false,
+        description: "Enable vite server",
       });
     },
     async (argv) => {
@@ -61,7 +65,7 @@ yargs(hideBin(process.argv))
       const indexPath = join(__dirname, "./emulator/index.js");
       const fileUrl = `file://${indexPath.replace(/\\/g, "/")}`;
       const { startDevelopment } = await import(fileUrl);
-      await startDevelopment({ debug: argv.debug });
+      await startDevelopment({ debug: argv.debug, vite: argv.vite });
     }
   )
   .command(

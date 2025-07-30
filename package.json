@@ -35,7 +35,7 @@
   "scripts": {
     "build": "npm run build:emulator-client && npm run build:emulator && npm run build:cli && npm run build:emulator-thread && npm run build:index",
     "build:cli": "esbuild src/cli.ts --bundle --platform=node --outdir=dist --format=esm --packages=external",
-    "build:emulator": "esbuild src/emulator/index.ts --bundle --platform=node --outdir=dist/emulator --format=esm --external:ws",
+    "build:emulator": "node scripts/build-emulator.js",
     "build:emulator-thread": "esbuild src/emulator/server/serverProcess.ts --bundle --platform=node --outdir=dist/emulator --format=esm --external:ts-node",
     "build:emulator-client": "vite build",
     "dev": "vite",
