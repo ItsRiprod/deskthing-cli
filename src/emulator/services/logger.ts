@@ -1,5 +1,5 @@
   import { LOGGING_LEVELS } from '@deskthing/types'
-  import { DeskThingConfig } from '../../config/deskthing.config'
+  import { deskthingConfig } from '../../config/deskthing.config'
 import { LoggingLevel } from '../../config/deskthing.config.types'
 
   export class Logger {
@@ -7,7 +7,7 @@ import { LoggingLevel } from '../../config/deskthing.config.types'
     private static shouldLog(msgLevel: LoggingLevel): boolean {
       const levels = ['silent', 'error', 'warn', 'info', 'debug']
       const msgLevelIndex = levels.indexOf(msgLevel)
-      const configLevelIndex = levels.indexOf(DeskThingConfig.development.logging.level)
+      const configLevelIndex = levels.indexOf(deskthingConfig.development.logging.level)
   
       // If either level is not found, default to showing the message
       if (msgLevelIndex === -1 || configLevelIndex === -1) return true
@@ -17,7 +17,7 @@ import { LoggingLevel } from '../../config/deskthing.config.types'
     }
   
     static log(level: LoggingLevel, ...args: any[]): void {
-      const config = DeskThingConfig.development.logging
+      const config = deskthingConfig.development.logging
       const loggingLevel = config.level
       const prefix = config.prefix
 

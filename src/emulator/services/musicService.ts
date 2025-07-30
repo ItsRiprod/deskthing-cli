@@ -1,4 +1,4 @@
-import { DeskThingConfig } from "../../config/deskthing.config";
+import { deskthingConfig } from "../../config/deskthing.config";
 import { Logger } from "./logger";
 import { ServerMessageBus } from "../server/serverMessageBus";
 import { DESKTHING_DEVICE, SongData } from "@deskthing/types";
@@ -11,7 +11,7 @@ export class MusicService {
   start() {
     this.stop();
 
-    const interval = DeskThingConfig.development.server.refreshInterval * 1000;
+    const interval = deskthingConfig.development.server.refreshInterval * 1000;
 
     if (interval <= 0) {
       Logger.debug("Music service refresh disabled (interval <= 0)");

@@ -108,11 +108,11 @@ const DeveloperControls: React.FC = () => {
               />
             </div>
 
-            <div className="pt-6 flex gap-2 border-t border-gray-700">
+            <div className="pt-6 flex border-t border-gray-700">
               <button
                 onClick={handleApplyChanges}
                 disabled={!hasChanges}
-                className={`w-full rounded-lg px-4 py-3 font-medium transition-all duration-200 flex items-center justify-center space-x-2
+                className={`w-full mr-2 rounded-lg px-4 py-3 font-medium transition-all duration-200 flex items-center justify-center space-x-2
                 ${
                   hasChanges
                     ? "bg-green-600 hover:bg-green-700 text-white transform hover:scale-[1.02]"

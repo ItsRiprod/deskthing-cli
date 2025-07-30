@@ -1,115 +1,178 @@
-import { join } from 'path'
-import { existsSync } from 'fs'
-import { DeskThingConfig } from '../../config/deskthing.config'
-import { Logger } from '../services/logger'
-import { exec } from 'child_process'
+import { InlineConfig, PreviewServer, ViteDevServer as ViteServer } from "vite";
+import { Logger } from "../services/logger";
+import { join } from "node:path";
 
 export class ViteDevServer {
-  private server: any = null
+  private server: ViteServer | PreviewServer | null = null;
 
-  async start(): Promise<void> {
+  async start(legacy: boolean = false, vitePort: number): Promise<void> {
     try {
+      Logger.info(
+        `Starting Vite dev server ${
+          legacy ? "with" : "without"
+        } legacy plugin injection...`
+      );
 
-      await new Promise<void>((resolve, reject) => {
-        const viteProcess = exec('npx vite dev --host', { cwd: process.cwd() }, (error) => {
-          if (error) {
-            Logger.error('Failed to start Vite dev server:', error)
-            reject(error)
-          } else {
-            resolve()
+      // Set environment variables to help plugins coordinate
+      process.env.VITE_LEGACY_DEV = "true";
+      process.env.NODE_ENV = process.env.NODE_ENV || "development";
+
+      const { createServer, build, preview, loadConfigFromFile } = await import(
+        "vite"
+      );
+      const viteLegacyPlugin = await import("@vitejs/plugin-legacy").then(
+        (m) => m.default
+      );
+
+      // Load the user's existing vite configuration
+      const configEnv = { command: "serve" as const, mode: "development" };
+      const configResult = await loadConfigFromFile(
+        configEnv,
+        undefined,
+        process.cwd()
+      );
+
+      let userConfig = configResult?.config || {};
+
+      const legacyBuildPath = join(process.cwd(), "dist-legacy");
+
+      // Check if legacy plugin already exists
+      const existingPlugins = userConfig.plugins || [];
+      const pluginNames = existingPlugins
+        .map((plugin: any) => {
+          if (typeof plugin === "object" && plugin?.name) {
+            return plugin.name;
           }
+          return null;
         })
-        this.server = viteProcess
-        viteProcess.stdout?.on('data', (data) => Logger.info(data.toString()))
-        viteProcess.stderr?.on('data', (data) => Logger.error(data.toString()))
-      })
+        .filter(Boolean);
 
+      const hasLegacyPlugin = pluginNames.includes("vite:legacy");
 
-      // all of the following is an attempt to get it to work on the car thing - chrome 69
+      // Only add legacy plugin if it doesn't already exist
+      const finalPlugins =
+        hasLegacyPlugin || !legacy
+          ? existingPlugins
+          : [
+              ...existingPlugins,
+              viteLegacyPlugin({
+                targets: ["Chrome 69"],
+                modernTargets: ["Chrome 69"], // Force modern chunks to also target Chrome 69
+                polyfills: true, // Enable polyfills
+                additionalLegacyPolyfills: [
+                  "regenerator-runtime/runtime",
+                  "core-js/stable",
+                ],
+                modernPolyfills: true, // Enable modern polyfills too
+                renderLegacyChunks: true, // Generate legacy chunks
+                renderModernChunks: false, // Disable modern chunks since we're targeting Chrome 69
+                externalSystemJS: false,
+              }),
+            ];
 
-    //   const { createServer, defineConfig, loadConfigFromFile } = await import('vite')
-    //   const viteLegacyPlugin = await import('@vitejs/plugin-legacy').then(m => m.default)
+      // Create configuration that merges user config with our legacy plugin
+      const mergedConfig: InlineConfig = {
+        ...userConfig,
+        plugins: finalPlugins,
+        server: {
+          ...userConfig.server,
+          host: "0.0.0.0",
+          port: vitePort,
+          strictPort: true, // Ensure we use the specified port
+          cors: {
+            origin: "*", // Allow all origins for development
+            methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allowedHeaders: ["Content-Type", "Authorization"],
+            credentials: false, // Try without credentials first
+            preflightContinue: false,
+            optionsSuccessStatus: 204,
+          },
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Cross-Origin-Embedder-Policy": "unsafe-none",
+            "Cross-Origin-Opener-Policy": "unsafe-none",
+          },
+        },
+        build: {
+          outDir: "dist-legacy",
+        },
+        optimizeDeps: {
+          ...userConfig.optimizeDeps,
+          force: true, // Force re-bundling to avoid cache issues
+        },
+      };
 
-    //   // Base configuration for the emulator
-    //   const baseConfig = defineConfig({
-    //     plugins: [
-    //       viteLegacyPlugin({
-    //         targets: ["Chrome 69"],
-    //         modernTargets: "Chrome 69",
-    //         polyfills: true,
-    //         modernPolyfills: true,
-    //         renderLegacyChunks: true,
-    //         renderModernChunks: false
-    //       })
-    //     ],
-    //     define: {
-    //       'process.env.NODE_ENV': JSON.stringify('development'),
-    //       'process.env.VITE_MODE': JSON.stringify('legacy')
-    //     }
-    //   })
+      if (legacy) {
+        if (hasLegacyPlugin) {
+          Logger.info(
+            "Legacy plugin already exists in user config, skipping injection"
+          );
+        } else {
+          Logger.info("Injected legacy plugin into user configuration");
+        }
 
-    //   let finalConfig = baseConfig
+        await build(mergedConfig);
+        this.server = await preview({
+          ...mergedConfig,
+          configFile: false, // Prevents Vite from auto-loading vite.config.ts
+          root: process.cwd(),
+          preview: {
+            ...mergedConfig.server,
+            port: vitePort,
+            strictPort: true, // Ensure we use the specified port
+          },
+        });
+        Logger.info(
+          "✅ Vite dev server started with legacy plugin enabled for Chrome 69+ compatibility"
+        );
 
-    //   // If user has a vite config, try to merge it
-    //   try {
-    //     const configEnv = { command: 'serve' as const, mode: 'development' }
-    //     const configResult = await loadConfigFromFile(configEnv, undefined, process.cwd())
+      } else {
+        this.server = await createServer({
+          ...mergedConfig,
+          configFile: false, // Prevents Vite from auto-loading vite.config.ts
+          root: process.cwd(),
+        });
 
-    //     if (configResult?.config) {
-    //       Logger.debug('[vite] Found and loaded user vite configuration')
-    //       // Merge configurations, with our base config taking precedence for critical settings
-    //       finalConfig = {
-    //         ...configResult.config,
-    //         plugins: [
-    //           ...(configResult.config.plugins || []),
-    //           viteLegacyPlugin({
-    //             targets: ["Chrome 69"],
-    //             modernTargets: "Chrome 69",
-    //             polyfills: true,
-    //             modernPolyfills: true,
-    //             renderLegacyChunks: true,
-    //             renderModernChunks: false
-    //           })
-    //         ],
-    //       }
-    //       Logger.info('[vite] Successfully merged user vite configuration')
-    //     }
-      // } catch (error) {
-    //     Logger.warn('[vite] No user vite config found or failed to load, using default configuration')
-    //   }
+        // Start the server
+        if ("listen" in this.server) await this.server.listen();
 
-    //   console.log('Final Config File: ', finalConfig)
+        Logger.info(
+          "✅ Vite dev server started with legacy plugin enabled for Chrome 69+ compatibility"
+        );
+      }
 
-    //   // Create the Vite dev server
-    //   this.server = await createServer(finalConfig)
+      this.server.printUrls();
 
-    //   // Start the server
-    //   await this.server.listen()
-
-    //   const vitePort = DeskThingConfig.development.client.vitePort
-    //   const viteLocation = DeskThingConfig.development.client.viteLocation
-
-    //   Logger.info(`\x1b[35m⚡ Vite Dev Server running at ${viteLocation}:${vitePort}\x1b[0m`)
-    //   Logger.info(`\x1b[33m🔧 Legacy mode enabled for Chrome 69+ compatibility\x1b[0m`)
-
-    //   // Print the local and network URLs
-    //   this.server.printUrls()
+      const port = this.server.config.server.port
 
     } catch (error) {
-    //   Logger.error('Failed to start Vite dev server:', error)
-    //   throw error
+      Logger.error("Failed to start Vite dev server:", error);
+      throw error;
     }
   }
 
   async stop(): Promise<void> {
     if (this.server) {
-      await this.server.close()
-      this.server = null
-      Logger.info('Vite dev server stopped')
+      try {
+        await this.server.close();
+        this.server = null;
+        Logger.info("Vite dev server stopped");
+      } catch (error) {
+        Logger.error("Error stopping Vite dev server:", error);
+      }
     }
   }
 
+  async getPort(): Promise<number> {
+    if (!this.server) {
+      throw new Error("Vite dev server is not running");
+    }
+    return this.server.config.server.port;
+  }
+
   getServer() {
-    return this.server
+    return this.server;
   }
 }

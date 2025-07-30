@@ -43,15 +43,47 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => {
       const { viteDevUrl } = get()
       const { setViteConnection, incrementConnectionAttempts, connectionAttempts } = useClientStore.getState()
 
+      ClientLogger.debug(`Attempting to connect to Vite server at: ${viteDevUrl}`)
+      ClientLogger.debug(`Connection attempt #${connectionAttempts + 1}`)
+
       try {
-        await fetch(viteDevUrl, { method: "HEAD", mode: "no-cors" })
+        // Try multiple connection methods for debugging
+        ClientLogger.debug('Trying HEAD request with no-cors mode...')
+        const headResponse = await fetch(viteDevUrl, { method: "HEAD", mode: "no-cors" })
+        ClientLogger.debug(`HEAD request completed. Status: ${headResponse.status}, Type: ${headResponse.type}`)
+        
+        // Also try a GET request to see if we can actually load content
+        try {
+          ClientLogger.debug('Trying GET request to verify content loading...')
+          const getResponse = await fetch(viteDevUrl, { method: "GET", mode: "no-cors" })
+          ClientLogger.debug(`GET request completed. Status: ${getResponse.status}, Type: ${getResponse.type}`)
+          
+          // Try to check if we can access the actual content
+          if (getResponse.type === 'opaque') {
+            ClientLogger.warn('Response is opaque - this might indicate CORS restrictions')
+          }
+        } catch (getError) {
+          ClientLogger.warn('GET request failed - might be CORS or network issue:', getError)
+          
+          // Try with CORS mode to see if we get a more specific error
+          try {
+            ClientLogger.debug('Trying GET request with CORS mode for better error info...')
+            await fetch(viteDevUrl, { method: "GET", mode: "cors" })
+          } catch (corsError) {
+            ClientLogger.error('CORS request failed:', corsError)
+          }
+        }
+
         setViteConnection(true)
-      } catch {
+        ClientLogger.info(`✅ Successfully connected to Vite server at ${viteDevUrl}`)
+      } catch (error) {
+        ClientLogger.error(`❌ Failed to connect to Vite server at ${viteDevUrl}:`, error)
         setViteConnection(false)
         incrementConnectionAttempts()
 
         // Retry with exponential backoff
         const delay = Math.min(connectionAttempts * 1000, 5000)
+        ClientLogger.debug(`Retrying connection in ${delay}ms...`)
         setTimeout(() => get().checkViteServer(), delay)
       }
     },

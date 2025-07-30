@@ -4,11 +4,12 @@ import { ServerRunner } from './server/server'
 import { Logger } from './services/logger'
 import { TimeService } from './services/timeService'
 import { ViteDevServer } from './vite/viteDev'
-export async function startDevelopment({ debug, vite }: { debug?: boolean, vite?: boolean } = { debug: false, vite: false }) { 
-  if (debug) console.log("Debug mode enabled")
-  if (vite) console.log("Vite mode enabled")
+export async function startDevelopment({ debug, vite, legacy }: { debug?: boolean, vite?: boolean, legacy?: boolean } = { debug: false, vite: false, legacy: false }) { 
+  if (debug) Logger.info("Debug mode enabled")
+  if (vite) Logger.info("Vite mode enabled")
+  if (legacy) Logger.info("Legacy mode enabled")
 
-  await initConfig({ debug })
+  const config = await initConfig({ debug })
   const devServer = new DevClient()
   const serverRunner = new ServerRunner()
   const timeService = new TimeService()
@@ -22,7 +23,7 @@ export async function startDevelopment({ debug, vite }: { debug?: boolean, vite?
   // Conditionally start Vite dev server
   if (vite) {
     const viteServer = new ViteDevServer()
-    services.push(viteServer.start())
+    services.push(viteServer.start(legacy, config.development.client.vitePort))
     
     // Handle graceful shutdown
     const cleanup = async () => {

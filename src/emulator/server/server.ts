@@ -9,7 +9,7 @@ import { AppManifest, getManifestDetails } from "./manifestDetails";
 import { ServerMessageBus } from "./serverMessageBus";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-import { DeskThingConfig } from "../../config/deskthing.config";
+import { deskthingConfig } from "../../config/deskthing.config";
 import { LOGGING_LEVELS } from "@deskthing/types";
 import { MusicService } from "../services/musicService";
 
@@ -29,7 +29,7 @@ export class ServerRunner {
   }
 
   private startServerMessageBus() {
-    ServerMessageBus.initialize(DeskThingConfig.development.client.linkPort);
+    ServerMessageBus.initialize(deskthingConfig.development.client.linkPort);
     ServerMessageBus.subscribe("app:data", (payload) => {
       if (this.serverWorker) {
         Logger.debug(`[ServerMessageBus]: Received data from app: ${payload.type}`);
@@ -195,16 +195,16 @@ export class ServerRunner {
     if (this.restartTimeout) {
       clearTimeout(this.restartTimeout);
     }
-    Logger.info(`🕛 Queued restart in ${DeskThingConfig.development.server.editCooldownMs || 1000}ms`);
+    Logger.info(`🕛 Queued restart in ${deskthingConfig.development.server.editCooldownMs || 1000}ms`);
     this.restartTimeout = setTimeout(() => {
       this.restartServer();
       this.restartTimeout = null;
       Logger.info(
         `🕛 Waited ${
-          DeskThingConfig.development.server.editCooldownMs || 1000
+          deskthingConfig.development.server.editCooldownMs || 1000
         }ms. Restarting...`
       );
-    }, DeskThingConfig.development.server.editCooldownMs || 1000);
+    }, deskthingConfig.development.server.editCooldownMs || 1000);
   }
 
   private async restartServer() {

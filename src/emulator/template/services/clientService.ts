@@ -165,7 +165,7 @@ export class ClientService {
     const clientConfig = useClientStore.getState().config
     if (clientConfig.logging.level == undefined) {
       this.logCache.push({ level, message, data })
-
+      console.log(`${level}: ${message}`, ...data)
       return
     }
 

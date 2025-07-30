@@ -58,6 +58,10 @@ yargs(hideBin(process.argv))
         type: "boolean",
         default: false,
         description: "Enable vite server",
+      }).option("legacy", {
+        type: "boolean",
+        default: false,
+        description: "Enable legacy mode for Vite",
       });
     },
     async (argv) => {
@@ -80,7 +84,8 @@ yargs(hideBin(process.argv))
       const indexPath = join(__dirname, "./emulator/index.js");
       const fileUrl = `file://${indexPath.replace(/\\/g, "/")}`;
       const { startDevelopment } = await import(fileUrl);
-      await startDevelopment({ debug: argv.debug, vite: argv.vite });
+      // also enable vite if legacy is enabled
+      await startDevelopment({ debug: argv.debug, vite: argv.vite || argv.legacy, legacy: argv.legacy });
     }
   )
   .command(

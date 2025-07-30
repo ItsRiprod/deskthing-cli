@@ -313,7 +313,7 @@ export const getConfigFromFile = async (debug: boolean = false) => {
   }
 };
 
-export let DeskThingConfig: DeskthingConfig = defaultConfig;
+export let deskthingConfig: DeskthingConfig = defaultConfig;
 
 function isObject(item: any): item is Record<string, any> {
   return item && typeof item === "object" && !Array.isArray(item);
@@ -343,11 +343,18 @@ export const initConfig = async (
   options: { silent?: boolean; debug?: boolean } = {
     silent: false,
     debug: false,
-  }
-) => {
+  },
+  overrides: DeepPartial<DeskthingConfig> = {}
+): Promise<DeskthingConfig> => {
   try {
     const userConfig = await getConfigFromFile(options.debug);
-    DeskThingConfig = deepmerge(defaultConfig, userConfig || {});
+
+    // First merge the default thats overwritten with the user config
+    const PreMergedConfig = deepmerge(defaultConfig, userConfig || {});
+
+    // Then override with the overrides
+    deskthingConfig = deepmerge(PreMergedConfig, overrides || {});
+
     if (!options.silent || options.debug) {
       if (userConfig) {
         console.log(`\n\n\x1b[32m✅ Config Loaded\x1b[0m\n\n`);
@@ -363,29 +370,32 @@ export const initConfig = async (
         }
       }
     }
+
+    return deskthingConfig;
   } catch (e) {
     console.warn("\x1b[93mWarning: Error loading config, using defaults\x1b[0m");
     if (options.debug)
       console.error("\x1b[91mError loading config:", e, "\x1b[0m");
-    DeskThingConfig = defaultConfig;
+    deskthingConfig = deepmerge(defaultConfig, overrides || {});
+    return deskthingConfig;
 
   }
 };
 
 /**
- * @deprecated - Use {@link DeskThingConfig} instead after calling initConfig in root
+ * @deprecated - Use {@link deskthingConfig} instead after calling initConfig in root
  * @returns
  */
 export async function getServerConfig(): Promise<DeskthingConfig> {
-  if (DeskThingConfig) {
-    return DeskThingConfig;
+  if (deskthingConfig) {
+    return deskthingConfig;
   }
   const userConfig = await getConfigFromFile();
-  DeskThingConfig = {
+  deskthingConfig = {
     ...defaultConfig,
     ...(userConfig || {}),
   };
-  return DeskThingConfig;
+  return deskthingConfig;
 }
 
 /**

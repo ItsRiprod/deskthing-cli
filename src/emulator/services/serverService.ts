@@ -2,7 +2,7 @@ import { getServerData } from '../server/coms'
 import { getManifestDetails } from '../server/manifestDetails'
 import { Logger } from './logger'
 import { ServerMessageBus } from '../server/serverMessageBus'
-import { DeskThingConfig } from '../../config/deskthing.config'
+import { deskthingConfig } from '../../config/deskthing.config'
 import { SettingService } from './settingService'
 
 export class ServerService {
@@ -80,7 +80,7 @@ export class ServerService {
   }
 
   private async sendClientConfig() {
-    const clientConfig = DeskThingConfig.development.client
+    const clientConfig = deskthingConfig.development.client
     ServerMessageBus.publish('client:response', {
       type: 'clientConfig',
       payload: clientConfig // Send the client section of the config

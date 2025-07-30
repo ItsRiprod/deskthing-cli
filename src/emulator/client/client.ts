@@ -3,7 +3,7 @@ import { existsSync, readFileSync, statSync } from "fs";
 import { extname, join, normalize } from "path";
 import { fileURLToPath } from "url";
 import { URL } from "url";
-import { DeskThingConfig } from "../../config/deskthing.config";
+import { deskthingConfig } from "../../config/deskthing.config";
 import { Logger } from "../services/logger";
 import { CallbackService } from "./callbackService";
 
@@ -110,7 +110,7 @@ export class DevClient {
       });
     });
 
-    const clientPort = DeskThingConfig.development.client.clientPort;
+    const clientPort = deskthingConfig.development.client.clientPort;
     server.listen(clientPort, () => {
       Logger.info(
         `\x1b[36m🚀 Development Server is running at http://localhost:${clientPort}\x1b[0m`
@@ -132,7 +132,7 @@ export class DevClient {
     if (urlPath === "/config") {
       try {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(DeskThingConfig.development.client));
+        res.end(JSON.stringify(deskthingConfig.development.client));
         return true;
       } catch (err) {
         Logger.error("Error serving config:", err);
@@ -156,7 +156,7 @@ export class DevClient {
     // Handle /client/manifest.json
     if (urlPath === "/client/manifest.json") {
       const clientIp = req.headers.host?.split(':')[0] || "localhost";
-      const clientPort = DeskThingConfig.development.client.clientPort;
+      const clientPort = deskthingConfig.development.client.clientPort;
 
       // Create a mock manifest response
       const mockManifest = {

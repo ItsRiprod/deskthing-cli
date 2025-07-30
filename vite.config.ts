@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
-import tailwindcss from '@tailwindcss/vite'
 import viteLegacyPlugin from "@vitejs/plugin-legacy"
 
 export default defineConfig(({ command, mode }) => {
@@ -9,7 +8,7 @@ export default defineConfig(({ command, mode }) => {
   const isLegacyDev = process.env.LEGACY_DEV === 'true' || mode === 'legacy'
 
   return {
-    plugins: [react(), tailwindcss(), ...(command === 'build' || isLegacyDev ? [
+    plugins: [react(), ...(command === 'build' || isLegacyDev ? [
       viteLegacyPlugin({
         targets: ["Chrome 69"],
         modernPolyfills: true,

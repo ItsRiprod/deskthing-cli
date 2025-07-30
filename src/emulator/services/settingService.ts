@@ -1,7 +1,7 @@
 import { Logger } from "./logger";
 import { ServerMessageBus } from "../server/serverMessageBus";
 import { AppSettings, DESKTHING_DEVICE } from "@deskthing/types";
-import { DeskThingConfig } from "../../config/deskthing.config";
+import { deskthingConfig } from "../../config/deskthing.config";
 
 export class SettingService {
   private static currentSettings: AppSettings = {};
@@ -43,7 +43,7 @@ export class SettingService {
           {
             ...setting,
             value:
-              DeskThingConfig.development?.server?.mockData?.settings[key] ??
+              deskthingConfig.development?.server?.mockData?.settings[key] ??
               setting.value,
           },
         ];

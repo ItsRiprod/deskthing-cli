@@ -15,7 +15,7 @@ import {
   ConnectionState,
   ClientConnectionMethod,
 } from "@deskthing/types";
-import { DeskThingConfig } from "../../config/deskthing.config";
+import { deskthingConfig } from "../../config/deskthing.config";
 import { exec } from "child_process";
 import { MusicService } from "../services/musicService"
 import { SettingService } from "../services/settingService";

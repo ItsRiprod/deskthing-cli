@@ -1,7 +1,7 @@
   import path from 'path';
   import fs from 'fs';
 import { Logger } from '../services/logger'
-import { DeskThingConfig } from '../../config/deskthing.config';
+import { deskthingConfig } from '../../config/deskthing.config';
 
   type PlatformTypes = 'linux' | 'windows' | 'macos';
   type TagTypes = 'system' | 'utility' | 'media' | 'development' | 'network' | 'gaming';

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useClientStore } from "../stores/clientStore";
 import { useMessageStore } from "../stores/messageStore";
 import { useConnectionStore } from "../stores/connectionStore";
@@ -54,6 +54,11 @@ export const DevWrapper: React.FC = () => {
 
   // Initialize connection on mount
   useEffect(() => {
+    ClientLogger.info("🚀 DevWrapper initializing...");
+    ClientLogger.info(`Target Vite URL: ${viteDevUrl}`);
+    ClientLogger.info(`User Agent: ${navigator.userAgent}`);
+    ClientLogger.info(`Location: ${window.location.href}`);
+
     initialize();
     requestManifest();
     checkViteServer();
@@ -86,7 +91,12 @@ export const DevWrapper: React.FC = () => {
   }, [viteDevUrl, handleIframeMessage]);
 
   const handleIframeLoad = () => {
-    if (!appManifest) return;
+    ClientLogger.info(`🎯 Iframe loaded successfully from: ${viteDevUrl}`);
+
+    if (!appManifest) {
+      ClientLogger.warn("No app manifest available during iframe load");
+      return;
+    }
 
     const clientStatusPayload = {
       clientId,
@@ -94,6 +104,11 @@ export const DevWrapper: React.FC = () => {
       timestamp: Date.now(),
       currentApp: appManifest.id,
     };
+
+    ClientLogger.debug(
+      "Sending connection events to app:",
+      clientStatusPayload
+    );
 
     // Send connection events
     ClientService.sendToApp({
@@ -118,7 +133,12 @@ export const DevWrapper: React.FC = () => {
     processQueueItems();
   };
 
-  const handleIframeError = () => {
+  const handleIframeError = (error?: any) => {
+    ClientLogger.error(`❌ Iframe failed to load from: ${viteDevUrl}`, error);
+    ClientLogger.error(
+      "This might be a CORS, network, or content loading issue"
+    );
+
     ClientService.sendToApp({
       type: DESKTHING_EVENTS.CLIENT_STATUS,
       request: "disconnected",
@@ -127,26 +147,13 @@ export const DevWrapper: React.FC = () => {
   };
 
   const renderLoadingState = () => (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100vh",
-        backgroundColor: "#2d2d2d",
-        color: "#ffffff",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <p style={{ fontSize: "1.5em", fontWeight: "bold" }}>
-        Connecting to Development Server...
-      </p>
-      <p style={{ textAlign: "center", maxWidth: "80%" }}>
+    <div className="flex flex-col justify-center items-center h-screen bg-[#2d2d2d] text-white font-sans">
+      <p className="text-2xl font-bold">Connecting to Development Server...</p>
+      <p className="text-center max-w-[80%]">
         Run the Vite Development of your frontend on port 5173 to view here!
       </p>
       {connectionAttempts > 0 && (
-        <p style={{ marginTop: "20px", color: "#ffcc00" }}>
+        <p className="mt-5 text-yellow-300">
           Connection attempts: {connectionAttempts} - Still trying to connect...
         </p>
       )}
@@ -154,31 +161,28 @@ export const DevWrapper: React.FC = () => {
   );
 
   return (
-    <div
-      className="dev-container"
-      style={{
-        padding: 0,
-        margin: 0,
-        width: "100%",
-        height: "100%",
-      }}
-    >
+    <div className="dev-container p-0 m-0 w-full h-full relative">
       {isViteServerConnected ? (
-        <iframe
-          title="DeskThing App"
-          ref={iframeRef}
-          src={viteDevUrl}
-          id="app"
-          style={{
-            width: "100%",
-            height: "100%",
-            border: "none",
-          }}
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-        />
+        <>
+          {ClientLogger.info(`📺 Rendering iframe with src: ${viteDevUrl}`)}
+          <iframe
+            title="DeskThing App"
+            ref={iframeRef}
+            src={viteDevUrl}
+            id="app"
+            className="w-full h-full border-none"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+            allow="fullscreen"
+          />
+        </>
       ) : (
-        renderLoadingState()
+        <>
+          {ClientLogger.debug(
+            `🔄 Showing loading state. Connection attempts: ${connectionAttempts}`
+          )}
+          {renderLoadingState()}
+        </>
       )}
       <div id="debug-panel" />
     </div>
