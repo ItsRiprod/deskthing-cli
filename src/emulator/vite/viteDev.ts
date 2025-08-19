@@ -76,7 +76,7 @@ export class ViteDevServer {
         plugins: finalPlugins,
         server: {
           ...userConfig.server,
-          host: "0.0.0.0",
+          host: true,
           port: vitePort,
           strictPort: true, // Ensure we use the specified port
           cors: {

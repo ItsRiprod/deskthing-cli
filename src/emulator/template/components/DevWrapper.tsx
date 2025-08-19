@@ -150,7 +150,7 @@ export const DevWrapper: React.FC = () => {
     <div className="flex flex-col justify-center items-center h-screen bg-[#2d2d2d] text-white font-sans">
       <p className="text-2xl font-bold">Connecting to Development Server...</p>
       <p className="text-center max-w-[80%]">
-        Run the Vite Development of your frontend on port 5173 to view here!
+        Run the Vite Development of your frontend on {viteDevUrl} to view here!
       </p>
       {connectionAttempts > 0 && (
         <p className="mt-5 text-yellow-300">

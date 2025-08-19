@@ -34,6 +34,24 @@ export class DevClient {
     }
   }
 
+  private setCorsHeaders(res: any): void {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
+    res.setHeader('Access-Control-Allow-Credentials', 'false');
+    res.setHeader('Access-Control-Max-Age', '86400');
+  }
+
+  private handleCorsPreflightRequest(req: any, res: any): boolean {
+    if (req.method === 'OPTIONS') {
+      this.setCorsHeaders(res);
+      res.writeHead(200);
+      res.end();
+      return true;
+    }
+    return false;
+  }
+
   async start(): Promise<void> {
     const __dirname = fileURLToPath(new URL(".", import.meta.url));
     const staticPath = join(__dirname, "./template");
@@ -58,7 +76,17 @@ export class DevClient {
       ".otf": "font/otf",
     };
 
+
+
     const server = createServer((req, res) => {
+
+      this.setCorsHeaders(res);
+
+      // Handle preflight requests
+      if (this.handleCorsPreflightRequest(req, res)) {
+        return;
+      }
+
       // Handle only GET requests for most routes (except proxy which may handle POST)
       if (!["GET", "POST"].includes(req.method || "")) {
         res.statusCode = 405;

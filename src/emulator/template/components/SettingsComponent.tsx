@@ -13,7 +13,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
   const renderInput = (setting: SettingsType) => {
     if (setting.disabled)
       return (
-        <div className="text-gray-500 bg-gray-800 rounded px-3 py-2 opacity-60">
+        <div className="text-emerald-500 bg-emerald-950 rounded px-3 py-2 opacity-60">
           {setting.label} (disabled)
         </div>
       );
@@ -26,9 +26,9 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
               type="checkbox"
               checked={!!setting.value}
               onChange={(e) => onChange(setting.id!, e.target.checked)}
-              className="accent-blue-500 w-5 h-5 rounded focus:ring-2 focus:ring-blue-600"
+              className="accent-emerald-500 w-5 h-5 rounded focus:ring-2 focus:ring-emerald-600"
             />
-            <span className="text-gray-200">{setting.label}</span>
+            <span className="text-emerald-100">{setting.label}</span>
           </label>
         );
       case SETTING_TYPES.NUMBER:
@@ -41,7 +41,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
             max={setting.max}
             step={1}
             onChange={(e) => onChange(setting.id!, Number(e.target.value))}
-            className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:border-blue-500"
+            className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 w-full focus:outline-none focus:border-emerald-500"
           />
         );
       case SETTING_TYPES.STRING:
@@ -51,7 +51,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
             value={String(setting.value ?? "")}
             maxLength={setting.maxLength}
             onChange={(e) => onChange(setting.id!, e.target.value)}
-            className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:border-blue-500"
+            className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 w-full focus:outline-none focus:border-emerald-500"
           />
         );
       case SETTING_TYPES.SELECT:
@@ -59,7 +59,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
           <select
             value={String(setting.value ?? "")}
             onChange={(e) => onChange(setting.id!, e.target.value)}
-            className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:border-blue-500"
+            className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 w-full focus:outline-none focus:border-emerald-500"
           >
             {setting.placeholder && (
               <option value="">{setting.placeholder}</option>
@@ -82,7 +82,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                 Array.from(e.target.selectedOptions, (o) => o.value)
               )
             }
-            className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:border-blue-500"
+            className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 w-full focus:outline-none focus:border-emerald-500"
           >
             {setting.options.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -105,7 +105,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                       newList[idx] = e.target.value;
                       onChange(setting.id!, newList);
                     }}
-                    className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 flex-1 focus:outline-none focus:border-blue-500"
+                    className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 flex-1 focus:outline-none focus:border-emerald-500"
                   />
                   <button
                     type="button"
@@ -114,7 +114,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                       newList.splice(idx, 1);
                       onChange(setting.id!, newList);
                     }}
-                    className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition"
+                    className="px-2 py-1 bg-emerald-700 text-white rounded hover:bg-emerald-800 transition"
                   >
                     Remove
                   </button>
@@ -134,7 +134,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                 Array.isArray(setting.value) &&
                 setting.value.length >= setting.maxValues
               }
-              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-700 transition"
+              className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:bg-emerald-900 transition"
             >
               Add
             </button>
@@ -146,7 +146,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
             {(Array.isArray(setting.value) ? setting.value : []).map(
               (val, idx) => (
                 <div key={idx} className="flex items-center mb-2 gap-2">
-                  <span className="flex-1 text-gray-200">{val}</span>
+                  <span className="flex-1 text-emerald-100">{val}</span>
                   <button
                     type="button"
                     disabled={idx === 0}
@@ -155,7 +155,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                       [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
                       onChange(setting.id!, arr);
                     }}
-                    className="px-2 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 disabled:opacity-50 transition"
+                    className="px-2 py-1 bg-emerald-800 text-emerald-100 rounded hover:bg-emerald-700 disabled:opacity-50 transition"
                   >
                     ↑
                   </button>
@@ -167,7 +167,7 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
                       [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
                       onChange(setting.id!, arr);
                     }}
-                    className="px-2 py-1 bg-gray-700 text-gray-200 rounded hover:bg-gray-600 disabled:opacity-50 transition"
+                    className="px-2 py-1 bg-emerald-800 text-emerald-100 rounded hover:bg-emerald-700 disabled:opacity-50 transition"
                   >
                     ↓
                   </button>
@@ -180,9 +180,9 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
         return (
           <input
             type="color"
-            value={String(setting.value ?? "#000000")}
+            value={String(setting.value ?? "#10b981")}
             onChange={(e) => onChange(setting.id!, e.target.value)}
-            className="h-8 w-16 rounded border border-gray-700 bg-gray-900"
+            className="h-8 w-16 rounded border border-emerald-700 bg-emerald-950"
           />
         );
       default:
@@ -191,18 +191,18 @@ export const SettingsComponent: React.FC<SettingsComponentProps> = ({
             type="text"
             value={String((setting as any).value)}
             onChange={(e) => onChange((setting as any).id!, e.target.value)}
-            className="bg-gray-900 text-gray-100 border border-gray-700 rounded px-3 py-2 w-full focus:outline-none focus:border-blue-500"
+            className="bg-emerald-950 text-emerald-100 border border-emerald-700 rounded px-3 py-2 w-full focus:outline-none focus:border-emerald-500"
           />
         );
     }
   };
 
   return (
-    <div className="mb-6 bg-gray-900 rounded-lg p-4 shadow-lg border border-gray-800">
-      <label className="block font-semibold mb-1 text-gray-100">
+    <div className="mb-6 rounded-lg p-4 shadow-lg border border-emerald-800">
+      <label className="block font-semibold mb-1 text-emerald-100">
         {setting.label}
         {setting.description && (
-          <span className="ml-2 text-gray-400 text-sm">
+          <span className="ml-2 text-emerald-400 text-sm">
             {setting.description}
           </span>
         )}
