@@ -2,25 +2,35 @@ import { join, resolve } from "path";
 import zl from "zip-lib";
 import { readdir, stat, cp, rm, mkdir } from "fs/promises";
 import { loadConfigs } from "./config";
-import { build as buildEsbuild } from "esbuild";
+import { build as buildEsbuild, BuildOptions } from "esbuild";
 import { build as buildVite } from "vite";
 import viteLegacyPlugin from "@vitejs/plugin-legacy"
 import { exec } from "child_process"
+import { existsSync } from "fs";
+import { pathToFileURL } from "url";
 
 async function buildServer() {
-  await buildEsbuild({
+  let userConfig: BuildOptions = {};
+  const userConfigPath = resolve(process.cwd(), "esbuild.config.mjs");
+  if (existsSync(userConfigPath)) {
+    console.debug("\x1b[36m%s\x1b[0m", `🔧 Found user esbuild config at ${userConfigPath}, merging with default config...`);
+    userConfig = (await import(pathToFileURL(userConfigPath).href)).default;
+    console.log("\x1b[36m%s\x1b[0m", "🔧 Found user esbuild config, merging with default config...");
+  }
+
+  const finalBuildConfig: BuildOptions = {
     entryPoints: ["server/index.ts"],
-    bundle: true,
+    bundle: userConfig.bundle ?? true,
     platform: "node",
     outfile: "dist/server/index.js",
     target: "ESNext",
     format: "esm",
-    external: ['node:*', 'fs', 'path', 'child_process'],
+    external: ['node:*', 'fs', 'path', 'child_process', ...(userConfig?.external || [])],
     resolveExtensions: [".ts", ".js"],
     sourcemap: true,
     banner: {
       js: `
-// ESM shims for Node.js built-in modules
+      // ESM shims for Node.js built-in modules
 import { createRequire as DeskThingCreateRequire } from 'module';
 import { fileURLToPath as DeskThingFileURLToPath } from 'url';
 import { dirname as DeskThingDirname } from 'node:path';
@@ -28,8 +38,19 @@ import { dirname as DeskThingDirname } from 'node:path';
 const require = DeskThingCreateRequire(import.meta.url);
 const __filename = DeskThingFileURLToPath(import.meta.url);
 const __dirname = DeskThingDirname(__filename);
-`}
-  });
+`},
+    ...userConfig,
+    plugins: [
+      ...(userConfig?.plugins || []),
+    ]
+  }
+
+  await buildEsbuild(finalBuildConfig);
+
+  if (userConfig != null) {
+    console.debug(`\x1b[36m%s\x1b[0m`, "🔧 Merged user esbuild config:");
+    console.debug(finalBuildConfig);
+  }
 }
 
 async function buildWorkers() {
