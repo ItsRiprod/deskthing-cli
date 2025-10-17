@@ -173,7 +173,7 @@ export const DevWrapper: React.FC = () => {
             className="w-full h-full border-none"
             onLoad={handleIframeLoad}
             onError={handleIframeError}
-            allow="fullscreen"
+            allow="microphone; camera; autoplay; fullscreen"
           />
         </>
       ) : (
