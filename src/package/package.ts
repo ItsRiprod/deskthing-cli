@@ -8,7 +8,11 @@ import viteLegacyPlugin from "@vitejs/plugin-legacy"
 import { exec } from "child_process"
 import { existsSync } from "fs";
 import { pathToFileURL } from "url";
+import { buildPlugins } from "./plugins/packagePlugins";
 
+/**
+ * Builds the server using esbuild
+ */
 async function buildServer() {
   let userConfig: BuildOptions = {};
   const userConfigPath = resolve(process.cwd(), "esbuild.config.mjs");
@@ -53,6 +57,10 @@ const __dirname = DeskThingDirname(__filename);
   }
 }
 
+/**
+ * Builds the workers using esbuild
+ * @returns 
+ */
 async function buildWorkers() {
   try {
     await stat("server/workers")
@@ -101,6 +109,10 @@ async function buildWorkers() {
   }
 }
 
+/**
+ * Builds the postinstall script using esbuild
+ * @returns 
+ */
 const buildPostinstall = async () => {
   try {
     await stat("postinstall")
@@ -127,6 +139,9 @@ const buildPostinstall = async () => {
   }
 }
 
+/**
+ * Builds the client using Vite
+ */
 async function buildClient() {
   await buildVite({
     configFile: "vite.config.ts",
@@ -147,6 +162,9 @@ async function buildClient() {
   });
 }
 
+/**
+ * Copies the deskthing/ folder to dist/
+ */
 async function copyDeskThing() {
   const deskthingPath = resolve("deskthing");
   const publicPath = resolve("public");
@@ -166,6 +184,13 @@ async function copyDeskThing() {
   }
 }
 
+/**
+ * Adds all files in a folder to a zip archive.
+ * @param archive The zip archive to add files to.
+ * @param folderPath The path to the folder to add.
+ * @param baseFolder The base folder to use for the file paths in the archive.
+ * @returns A promise that resolves when all files have been added.
+ */
 async function addFilesToArchive(
   archive: zl.Zip,
   folderPath: string,
@@ -187,6 +212,10 @@ async function addFilesToArchive(
     }
   }
 }
+
+/**
+ * Creates the final package from all of the files in dist/
+ */
 export async function createPackage() {
   const { packageJson, manifestJson } = loadConfigs();
 
@@ -259,6 +288,9 @@ export async function buildAll() {
 
   console.log("\x1b[33m%s\x1b[0m", "🏗️ Building Postinstall Script...");
   await buildPostinstall();
+
+  console.log("\x1b[33m%s\x1b[0m", "🏗️ Building Plugins...");
+  await buildPlugins();
 
   console.log("\x1b[33m%s\x1b[0m", "🏗️ Copying Manifest...");
   await copyDeskThing();

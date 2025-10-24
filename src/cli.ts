@@ -207,13 +207,30 @@ yargs(hideBin(process.argv))
       execSync("npm create deskthing@latest --create", { stdio: "inherit" });
     }
   )
+  .command(
+    "create-plugin",
+    "Setup a new DeskThing plugin",
+    (yargs) => {
+      return yargs;
+    },
+    async () => {
+      console.log(
+        `------- dev -- \x1b[1mcreate-plugin\x1b[0m -- update -- package --------`
+      );
+      console.log("Setting up the DeskThing plugin...");
+      execSync("npm create deskthing@latest --create-plugin", { stdio: "inherit" });
+    }
+  )
   .command("$0", "Show available commands", () => {
     Logger.info(`------- dev -- init -- update -- package --------`);
     Logger.info("Available commands:");
     Logger.info("  dev       Start development server");
     Logger.info("  update    Update dependencies and configurations");
     Logger.info("  package   Package and zip up your app");
-    Logger.info("  init  Setup the DeskThing template");
+    Logger.info("  package-client Package and zip up the client");
+    Logger.info("  create-plugin Template out a new plugin");
+    Logger.info("  init      Setup the DeskThing template");
+    Logger.info("  init-config  Setup the config file");
     Logger.info("Available Flags");
     Logger.info("  --silent      Suppress all output");
     Logger.info("  --debug       Verbosely logs information");
